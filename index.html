@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FacePDF - Facebook Post to PDF Archiver</title>
+    <meta name="description" content="Extract and preserve Facebook posts, photos, and discussions into high-resolution, archival-ready PDF documents with verified metadata and live preview." />
+    <meta property="og:title" content="FacePDF - Facebook Post to PDF Archiver" />
+    <meta property="og:description" content="Extract and preserve Facebook posts, photos, and discussions into high-resolution, archival-ready PDF documents with verified metadata and live preview." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      (function() {
+        try {
+          var originalFetch = window.fetch;
+          var activeFetch = originalFetch ? originalFetch.bind(window) : null;
+          Object.defineProperty(window, 'fetch', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+              return activeFetch;
+            },
+            set: function(fn) {
+              activeFetch = fn;
+            }
+          });
+        } catch (e) {
+          // Graceful fallback
+        }
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-slate-900 text-slate-100 antialiased font-['Plus_Jakarta_Sans',sans-serif] selection:bg-blue-600 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

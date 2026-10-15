@@ -1,0 +1,6 @@
+{
+  "name": "FacePDF - Facebook Post to PDF Archiver",
+  "description": "Extract and preserve Facebook posts, photos, and discussions into high-resolution, archival-ready PDF documents with verified metadata and live preview.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
