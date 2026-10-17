@@ -1,0 +1,67 @@
+# electron-builder configuration for FacebookGrabContents.
+#
+# asar is intentionally DISABLED: the Express engine runs as a separate plain
+# Node child process, and plain Node cannot read files from inside an asar
+# archive. Shipping real files keeps dev and production behaviour identical.
+appId: com.valentineonuchukwu.facebookgrabcontents
+productName: FacebookGrabContents
+copyright: Copyright © 2026 Valentine Onuchukwu — ProsperChild Technology, Nigeria
+
+directories:
+  output: release
+  buildResources: build-resources
+
+asar: false
+
+files:
+  - dist/**/*
+  - build/**/*
+  - electron/**/*
+  - package.json
+  - node_modules/**/*
+  - "!**/*.map"
+  - "!**/{.github,.vscode,test,tests,__tests__,spec,example,examples}/**"
+  - "!**/*.{md,markdown,txt,LICENSE,license}"
+
+extraResources:
+  - from: bin
+    to: bin
+    filter: ["**/*"]
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: build-resources/icon.png
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: FacebookGrabContents
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+mac:
+  target: [dmg, zip]
+  category: public.app-category.utilities
+  icon: build-resources/icon.png
+
+linux:
+  target: [AppImage, deb]
+  category: Utility
+  icon: build-resources/icon.png
+
+publish:
+  provider: github
+  owner: valentineonuchukwu48-ship-it
+  repo: facebookgrabcontents

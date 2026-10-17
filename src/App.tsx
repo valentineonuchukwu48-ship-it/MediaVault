@@ -15,6 +15,7 @@ import { BackgroundMusicPlayer } from './components/BackgroundMusicPlayer';
 import { VideoMergeStudio } from './components/VideoMergeStudio';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { ChatPage } from './components/ChatPage';
+import { DesktopPanel } from './components/DesktopPanel';
 import { generateCombinedPdf, exportSinglePostPdf } from './utils/pdfGenerator';
 import { Layers } from 'lucide-react';
 
@@ -585,6 +586,9 @@ export default function App() {
         onClose={() => setIsAiModalOpen(false)}
         postContext={posts.find((p) => p.id === activePostId)}
       />
+
+      {/* Desktop-only controls (folders, browser cookies, updates) */}
+      <DesktopPanel />
     </div>
   );
 }

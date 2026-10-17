@@ -2,7 +2,6 @@ import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { lookup } from 'dns/promises';
@@ -26,12 +25,17 @@ import {
   contentHashOf,
   loadChain,
 } from './src/server/vaultStore';
+import {
+  ensureDataDirs,
+  UPLOADS_DIR,
+  AUDIO_DIR,
+  MERGED_DIR,
+  PUBLIC_DIR,
+  DIST_DIR,
+} from './src/server/paths';
 import crypto from 'crypto';
 
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -50,6 +54,16 @@ function cleanKey(raw?: string | null): string {
 // SSRF guard: this server proxies/streams user-supplied URLs (images, videos)
 // and calls user-supplied AI base URLs. On a public host that becomes a way to
 // reach internal services (e.g. cloud metadata at 169.254.169.254) or localhost.
+/** An error carrying an intended HTTP status (e.g. 400 for a rejected URL). */
+class HttpError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'HttpError';
+    this.status = status;
+  }
+}
+
 // assertPublicUrl() rejects non-http(s) schemes, internal hostnames, and any
 // hostname that resolves to a private / loopback / link-local address.
 const PRIVATE_ADDR = /^(?:0\.|10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)|^(?:::1|fe80:|f[cd][0-9a-f]{2}:)/i;
@@ -58,14 +72,14 @@ async function assertPublicUrl(raw: string): Promise<string> {
   try {
     parsed = new URL(raw);
   } catch {
-    throw new Error('Invalid URL');
+    throw new HttpError(400, 'Invalid URL');
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('Only http(s) URLs are allowed');
+    throw new HttpError(400, 'Only http(s) URLs are allowed');
   }
   const host = parsed.hostname.replace(/^\[|\]$/g, '');
   if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|.*\.localdomain)$/i.test(host)) {
-    throw new Error('Blocked internal hostname');
+    throw new HttpError(400, 'Blocked internal hostname');
   }
   const literalIp = /^[0-9.]+$/.test(host) || host.includes(':');
   let addresses: string[] = [];
@@ -80,7 +94,7 @@ async function assertPublicUrl(raw: string): Promise<string> {
     }
   }
   if (addresses.some((a) => PRIVATE_ADDR.test(a))) {
-    throw new Error('Blocked private/loopback address');
+    throw new HttpError(400, 'Blocked private/loopback address');
   }
   return parsed.toString();
 }
@@ -144,22 +158,21 @@ app.use('/api/generate-music', mediaRateLimit);
 
 
 app.use(express.json({ limit: '100mb' }));
-const uploadsDir = path.resolve(__dirname, 'public/uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-const audioDir = path.resolve(__dirname, 'public/audio');
-if (!fs.existsSync(audioDir)) {
-  fs.mkdirSync(audioDir, { recursive: true });
-}
-app.use('/samples', express.static(path.resolve(__dirname, 'public/samples')));
+ensureDataDirs();
+const uploadsDir = UPLOADS_DIR;
+const audioDir = AUDIO_DIR;
+// /samples are immutable shipped assets: prefer the dev public/ folder, else the
+// built dist/ copy, so the packaged desktop app and dev share one code path.
+const samplesDir = fs.existsSync(path.join(PUBLIC_DIR, 'samples'))
+  ? path.join(PUBLIC_DIR, 'samples')
+  : path.join(DIST_DIR, 'samples');
+app.use('/samples', express.static(samplesDir));
 app.use('/uploads', express.static(uploadsDir));
 app.use('/audio', express.static(audioDir));
-app.use(express.static(path.resolve(__dirname, 'public')));
 
 // Periodic cleanup of temporary merged/voiceover outputs so a long-lived public
 // host does not fill its disk. Files older than MERGED_OUTPUT_TTL_MS are removed.
-const MERGED_OUTPUT_TMP = '/tmp/merged_outputs';
+const MERGED_OUTPUT_TMP = MERGED_DIR;
 const MERGED_OUTPUT_TTL_MS = Number(process.env.MERGED_OUTPUT_TTL_MS || 2 * 60 * 60 * 1000);
 const cleanupTimer = setInterval(() => {
   try {
@@ -522,7 +535,7 @@ app.get('/api/proxy-image', async (req, res) => {
     res.send(Buffer.from(arrayBuffer));
   } catch (err: any) {
     console.error('Error proxying image:', err);
-    res.status(500).send(`Image proxy error: ${err.message}`);
+    res.status(err?.status || 500).send(`Image proxy error: ${err.message}`);
   }
 });
 
@@ -793,7 +806,7 @@ app.post('/api/generate-music', async (req, res) => {
     });
   } catch (err: any) {
     console.error('Lyria music generation error:', err);
-    res.status(500).json({
+    res.status(err?.status || 500).json({
       error: err.message || 'Failed to generate music with Lyria',
       details: err.toString(),
     });
@@ -1432,7 +1445,7 @@ app.post('/api/ai/generate', async (req, res) => {
     });
   } catch (err: any) {
     console.error('AI Generation Error:', err);
-    res.status(500).json({
+    res.status(err?.status || 500).json({
       error: err.message || 'AI request failed with the specified model and key',
     });
   }
@@ -1870,13 +1883,16 @@ app.get('/api/proxy-video', async (req, res) => {
     res.end(Buffer.from(buffer));
   } catch (err: any) {
     console.error('Proxy video error:', err);
-    res.status(500).send('Failed to proxy video');
+    res.status(err?.status || 500).send(err?.status === 400 ? err.message : 'Failed to proxy video');
   }
 });
 
-// Mount Vite middleware in development or static dist in production
+// Mount Vite middleware in development or static dist in production.
+// The Electron shell starts this process with NODE_ENV=production and waits for
+// the machine-readable "FGC_READY" handshake before showing the window.
 async function startServer() {
   const isProd = process.env.NODE_ENV === 'production';
+  const host = process.env.HOST || '0.0.0.0';
 
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
@@ -1886,15 +1902,20 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    if (!fs.existsSync(path.join(DIST_DIR, 'index.html'))) {
+      console.warn(`[startup] Built frontend not found at ${DIST_DIR}. Run "npm run build" first.`);
+    }
+    app.use(express.static(DIST_DIR));
     app.get('*', (_req, res) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(DIST_DIR, 'index.html'));
     });
   }
 
-  app.listen(PORT, () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  const server = app.listen(Number(PORT), host, () => {
+    console.log(`FGC_READY port=${PORT} host=${host}`);
+    console.log(`Server running on http://${host}:${PORT}`);
   });
+  return server;
 }
 
 startServer();

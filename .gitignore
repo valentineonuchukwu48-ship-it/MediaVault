@@ -13,11 +13,25 @@ npm-install.log
 !.env.example
 
 # Runtime / generated data
+# (the desktop app writes all of this under the user's profile, but the repo
+#  keeps the same names ignored so local runs stay clean)
 vault/
+data/
+.test-data/
 public/uploads/
 public/audio/
+bin/
+release/
 
-# Platform-specific binary. Deploys install the correct yt-dlp for their OS
-# (see Dockerfile); do not commit the Windows build.
+# Cookies / secret material
+cookies.txt
+secrets/
+
+# Platform-specific binary. Builds fetch the correct yt-dlp/ffmpeg for their OS
+# via `npm run fetch:binaries`; never commit the binaries.
 yt-dlp.exe
 yt-dlp
+ffmpeg
+ffmpeg.exe
+ffprobe
+ffprobe.exe

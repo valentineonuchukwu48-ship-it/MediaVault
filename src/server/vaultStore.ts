@@ -13,6 +13,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { VAULT_DIR } from './paths';
 
 export type VaultEntryType = 'SEAL' | 'EDIT_DETECTED' | 'DELETE_DETECTED' | 'NOTE';
 
@@ -49,7 +50,6 @@ export interface ChainVerification {
   reason?: string;
 }
 
-const VAULT_DIR = path.resolve(process.cwd(), 'vault');
 const CHAIN_FILE = path.join(VAULT_DIR, 'chain.ndjson');
 const GENESIS = 'GENESIS';
 

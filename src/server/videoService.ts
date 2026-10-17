@@ -4,38 +4,32 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { FacebookVideoItem, MergeOptions, MergedVideoResult } from '../types';
+import {
+  MERGED_DIR,
+  TEMP_DIR,
+  PUBLIC_DIR,
+  DIST_DIR,
+  UPLOADS_DIR,
+  DATA_DIR,
+  YTDLP_PATH,
+  FFMPEG_PATH,
+  FFPROBE_PATH,
+  ensureDataDirs,
+} from './paths';
 
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
-const MERGED_OUTPUT_DIR = '/tmp/merged_outputs';
-if (!fs.existsSync(MERGED_OUTPUT_DIR)) {
-  fs.mkdirSync(MERGED_OUTPUT_DIR, { recursive: true });
-}
+// Make sure the writable runtime folders exist before anything writes to them.
+ensureDataDirs();
 
-// Check yt-dlp path (handles both Windows .exe and Linux binaries,
-// local project folder copies, and PATH fallback).
-// NOTE: this project runs as ESM, so __dirname is NOT available — we rely
-// on process.cwd() (the folder the server is started from) instead.
+const MERGED_OUTPUT_DIR = MERGED_DIR;
+
+// yt-dlp resolution lives in src/server/paths.ts: it prefers the bundled bin/
+// folder (shipped inside the desktop app), then an env override, the legacy
+// in-repo copy, and finally PATH. Kept as a function so call sites are unchanged.
 function getYtDlpPath(): string {
-  const cwd = process.cwd();
-  const candidates = [
-    // Local copy placed next to the project (e.g. downloaded on Windows)
-    path.resolve(cwd, 'yt-dlp.exe'),
-    path.resolve(cwd, 'yt-dlp'),
-    path.resolve(cwd, 'bin', 'yt-dlp.exe'),
-    path.resolve(cwd, 'bin', 'yt-dlp'),
-    // Common deployment locations (Linux)
-    '/bin_tools/yt-dlp',
-    '/tmp/yt-dlp',
-  ];
-  for (const c of candidates) {
-    try {
-      if (fs.existsSync(c)) return c;
-    } catch {}
-  }
-  // Nothing found on disk — rely on PATH resolution
-  return 'yt-dlp';
+  return YTDLP_PATH;
 }
 
 // Facebook aggressively blocks datacenter/cloud IPs. Supplying browser cookies
@@ -57,7 +51,7 @@ export function resolveCookiesPath(): string | null {
   const b64 = (process.env.YTDLP_COOKIES_BASE64 || '').trim();
   if (b64) {
     try {
-      const target = path.resolve(process.env.TMPDIR || '/tmp', 'yt-dlp-cookies.txt');
+      const target = path.join(TEMP_DIR, 'yt-dlp-cookies.txt');
       fs.writeFileSync(target, Buffer.from(b64, 'base64').toString('utf8'));
       return target;
     } catch {}
@@ -66,6 +60,7 @@ export function resolveCookiesPath(): string | null {
   const candidates = [
     path.resolve(process.cwd(), 'cookies.txt'),
     path.resolve(process.cwd(), 'secrets', 'cookies.txt'),
+    path.join(TEMP_DIR, 'cookies.txt'),
   ];
   for (const c of candidates) {
     try {
@@ -73,6 +68,34 @@ export function resolveCookiesPath(): string | null {
     } catch {}
   }
   return null;
+}
+
+/**
+ * Build the yt-dlp authentication arguments.
+ *
+ * Desktop is where this shines: instead of asking the user to export a
+ * cookies.txt by hand, we point yt-dlp at their OWN browser profile so a
+ * logged-in Facebook session is reused automatically — which is exactly what
+ * makes private/age-gated/blocked videos downloadable on a home connection.
+ *
+ *   YTDLP_COOKIES_FROM_BROWSER=chrome        (or edge / firefox / brave / chromium)
+ *   YTDLP_COOKIES_FROM_BROWSER=chrome:Profile 1
+ */
+export function ytDlpCookieArgs(): string[] {
+  let browser = (process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim();
+  if (!browser) {
+    // Desktop settings file wins when the env var was not set at spawn time,
+    // so changing the browser in the UI takes effect without a restart.
+    try {
+      const settings = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'settings.json'), 'utf8'));
+      browser = (settings.cookiesFromBrowser || '').trim();
+    } catch {
+      /* no settings yet */
+    }
+  }
+  if (browser) return ['--cookies-from-browser', browser];
+  const file = resolveCookiesPath();
+  return file ? ['--cookies', file] : [];
 }
 
 // Clean and extract URL from iframes or plugins
@@ -118,7 +141,7 @@ export async function extractVideoMetadata(rawInput: string): Promise<FacebookVi
   }
 
   const ytDlp = getYtDlpPath();
-  const cookiesPath = resolveCookiesPath();
+  const cookieArgs = ytDlpCookieArgs();
 
   // Strategy 1: Attempt extraction with yt-dlp
   // Facebook "/share/v/..." links are redirects; yt-dlp resolves them.
@@ -134,7 +157,7 @@ export async function extractVideoMetadata(rawInput: string): Promise<FacebookVi
       '--user-agent',
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     ];
-    if (cookiesPath) ytDlpArgs.push('--cookies', cookiesPath);
+    ytDlpArgs.push(...cookieArgs);
     ytDlpArgs.push(url);
 
     const { stdout } = await execFileAsync(ytDlp, ytDlpArgs, {
@@ -359,11 +382,23 @@ export async function saveVideoLocally(
     cleanUrl.startsWith('uploads/') ||
     cleanUrl.startsWith('/public/uploads/')
   ) {
-    const norm = cleanUrl.replace(/^\/?(public\/)?/, '');
-    const localRel = path.resolve('.', 'public', norm);
-    if (fs.existsSync(localRel)) {
-      fs.copyFileSync(localRel, destPath);
-      return;
+    // Resolve a local sample/upload without allowing path traversal: only the
+    // file NAME is used, searched across the writable uploads folder and the
+    // shipped sample folders.
+    const baseName = path.basename(cleanUrl.split('?')[0]);
+    const isUpload = /^\/?(public\/)?uploads\//.test(cleanUrl);
+    const candidates = isUpload
+      ? [path.join(UPLOADS_DIR, baseName)]
+      : [
+          path.join(PUBLIC_DIR, 'samples', baseName),
+          path.join(DIST_DIR, 'samples', baseName),
+          path.resolve('.', 'public', 'samples', baseName),
+        ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        fs.copyFileSync(candidate, destPath);
+        return;
+      }
     }
   }
 
@@ -421,7 +456,7 @@ export async function saveVideoLocally(
           const muxedTmp = `${destPath}.mux.mp4`;
           fs.writeFileSync(audioTmp, audioBuf);
           await execAsync(
-            `ffmpeg -y -i "${destPath}" -i "${audioTmp}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${muxedTmp}"`
+            `"${FFMPEG_PATH}" -y -i "${destPath}" -i "${audioTmp}" -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${muxedTmp}"`
           );
           fs.renameSync(muxedTmp, destPath);
           try {
@@ -444,7 +479,7 @@ export async function probeMedia(filePath: string): Promise<{
 }> {
   try {
     const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries stream=codec_type,width,height -show_entries format=duration -of json "${filePath}"`
+      `"${FFPROBE_PATH}" -v error -show_entries stream=codec_type,width,height -show_entries format=duration -of json "${filePath}"`
     );
     const info = JSON.parse(stdout);
     const streams = info.streams || [];
@@ -479,7 +514,7 @@ export async function mergeVideos(
   }
 
   const jobId = `merge_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
-  const tempDir = `/tmp/${jobId}`;
+  const tempDir = path.join(TEMP_DIR, jobId);
   fs.mkdirSync(tempDir, { recursive: true });
 
   const resolutionMode = options.resolution || '720p';
@@ -556,7 +591,7 @@ export async function mergeVideos(
     const outputPath = path.join(MERGED_OUTPUT_DIR, `${jobId}.mp4`);
 
     const inputArgs = downloadedPaths.map((p) => `-i "${p}"`).join(' ');
-    const ffmpegCmd = `ffmpeg -y ${inputArgs} -filter_complex "${filterGraph}" -map "[outv]" -map "[outa]" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 23 -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${outputPath}"`;
+    const ffmpegCmd = `"${FFMPEG_PATH}" -y ${inputArgs} -filter_complex "${filterGraph}" -map "[outv]" -map "[outa]" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -crf 23 -c:a aac -b:a 192k -ar 44100 -ac 2 -movflags +faststart "${outputPath}"`;
 
     const startTime = Date.now();
     await execAsync(ffmpegCmd, { timeout: 120000 });
@@ -609,7 +644,7 @@ export async function addVoiceoverToVideo(
   mixMode: 'overlay' | 'replace' = 'overlay'
 ): Promise<MergedVideoResult> {
   const jobId = `voiceover_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
-  const tempDir = `/tmp/${jobId}`;
+  const tempDir = path.join(TEMP_DIR, jobId);
   fs.mkdirSync(tempDir, { recursive: true });
 
   const inputVideoPath = path.join(tempDir, 'source.mp4');
@@ -624,10 +659,10 @@ export async function addVoiceoverToVideo(
       // Direct replace with the voiceover track:
       // Explicitly map video from input 0 and audio from input 1 (the voiceover WAV file)
       // Standardize audio to stereo 44.1kHz AAC at 192k with loudnorm normalization
-      ffmpegCmd = `ffmpeg -y -i "${inputVideoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -af "aformat=sample_rates=44100:channel_layouts=stereo,loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${outputMergedPath}"`;
+      ffmpegCmd = `"${FFMPEG_PATH}" -y -i "${inputVideoPath}" -i "${audioPath}" -map 0:v:0 -map 1:a:0 -c:v copy -af "aformat=sample_rates=44100:channel_layouts=stereo,loudnorm=I=-16:TP=-1.5:LRA=11" -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${outputMergedPath}"`;
     } else {
       // Overlay voiceover on top of existing video audio: duck existing audio to 25%, boost voice to 120%
-      ffmpegCmd = `ffmpeg -y -i "${inputVideoPath}" -i "${audioPath}" -filter_complex "[0:a]volume=0.25,aformat=sample_rates=44100:channel_layouts=stereo[bg];[1:a]volume=1.2,aformat=sample_rates=44100:channel_layouts=stereo[vo];[bg][vo]amix=inputs=2:duration=first:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[aout]" -c:v copy -map 0:v:0 -map "[aout]" -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${outputMergedPath}"`;
+      ffmpegCmd = `"${FFMPEG_PATH}" -y -i "${inputVideoPath}" -i "${audioPath}" -filter_complex "[0:a]volume=0.25,aformat=sample_rates=44100:channel_layouts=stereo[bg];[1:a]volume=1.2,aformat=sample_rates=44100:channel_layouts=stereo[vo];[bg][vo]amix=inputs=2:duration=first:dropout_transition=2,loudnorm=I=-16:TP=-1.5:LRA=11[aout]" -c:v copy -map 0:v:0 -map "[aout]" -c:a aac -b:a 192k -ar 44100 -ac 2 -shortest -movflags +faststart "${outputMergedPath}"`;
     }
 
     console.log('Running voiceover muxing:', ffmpegCmd);

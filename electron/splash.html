@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Starting FacebookGrabContents…</title>
+    <style>
+      :root {
+        --bg-0: #070b18;
+        --bg-1: #0e1430;
+        --accent-a: #6366f1;
+        --accent-b: #22d3ee;
+        --accent-c: #a855f7;
+        --text: #e8ecff;
+        --muted: #9aa6d4;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(900px 500px at 20% -10%, rgba(99, 102, 241, 0.35), transparent 60%),
+          radial-gradient(700px 460px at 100% 110%, rgba(34, 211, 238, 0.22), transparent 55%),
+          linear-gradient(160deg, var(--bg-1), var(--bg-0) 70%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        user-select: none;
+        -webkit-app-region: drag;
+      }
+      .card {
+        width: 100%;
+        padding: 30px 34px 26px;
+        animation: rise 520ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: none; }
+      }
+      .brand { display: flex; align-items: center; gap: 14px; }
+      .mark {
+        width: 54px; height: 54px; border-radius: 15px;
+        display: grid; place-items: center; flex: 0 0 auto;
+        background: linear-gradient(140deg, var(--accent-a), var(--accent-c) 55%, var(--accent-b));
+        box-shadow: 0 12px 34px rgba(99, 102, 241, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+      .mark svg { width: 30px; height: 30px; }
+      h1 {
+        margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.2px;
+        background: linear-gradient(90deg, #fff, #c7d2fe 60%, #a5f3fc);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      .sub { margin: 3px 0 0; font-size: 12.5px; color: var(--muted); letter-spacing: 0.3px; }
+      .status-row {
+        display: flex; justify-content: space-between; align-items: baseline;
+        margin: 30px 2px 9px; font-size: 12.5px; color: var(--muted);
+      }
+      #pct { font-variant-numeric: tabular-nums; font-weight: 700; color: #c7d2fe; }
+      .track {
+        height: 10px; border-radius: 999px; overflow: hidden;
+        background: rgba(148, 163, 214, 0.16);
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
+      }
+      .fill {
+        height: 100%; width: 8%; border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent-a), var(--accent-b), var(--accent-c));
+        background-size: 220% 100%;
+        animation: slide 2.4s linear infinite;
+        transition: width 480ms cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.6);
+      }
+      @keyframes slide {
+        0% { background-position: 0% 0; }
+        100% { background-position: 220% 0; }
+      }
+      .foot { margin: 18px 2px 0; font-size: 11px; color: rgba(154, 166, 212, 0.7); letter-spacing: 0.3px; }
+      .credit { margin: 4px 2px 0; font-size: 10.5px; color: rgba(199, 210, 254, 0.7); letter-spacing: 0.35px; }
+      .dots::after { content: ""; animation: dots 1.4s steps(4, end) infinite; }
+      @keyframes dots {
+        0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M14.5 3.5v10.2a3.6 3.6 0 1 1-2.4-3.4V6.1l8-1.9v3.1l-5.6 1.3"
+              stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M4 17.5c1.6 2 4 3.2 6.6 3.2" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity="0.85" />
+          </svg>
+        </div>
+        <div>
+          <h1>FacebookGrabContents</h1>
+          <p class="sub">Archive posts · Download &amp; merge video</p>
+        </div>
+      </div>
+
+      <div class="status-row">
+        <span id="label" class="dots">Starting</span>
+        <span id="pct">8%</span>
+      </div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+      <p class="foot">Engine runs locally · your data never leaves this machine</p>
+      <p class="credit">by Valentine Onuchukwu · ProsperChild Technology, Nigeria</p>
+    </div>
+
+    <script>
+      const fill = document.getElementById('fill');
+      const pct = document.getElementById('pct');
+      const label = document.getElementById('label');
+
+      function render(pctValue, text) {
+        const v = Math.max(0, Math.min(100, Number(pctValue) || 0));
+        fill.style.width = v + '%';
+        pct.textContent = v + '%';
+        if (text) label.textContent = text;
+      }
+
+      // Gentle idle creep so the bar always feels alive before the first tick.
+      let shown = 8;
+      const idle = setInterval(() => {
+        shown = Math.min(shown + 0.35, 92);
+        fill.style.width = shown + '%';
+        pct.textContent = Math.round(shown) + '%';
+      }, 480);
+
+      if (window.desktop && window.desktop.onStartupProgress) {
+        window.desktop.onStartupProgress(({ pct: p, label: l }) => {
+          clearInterval(idle);
+          render(p, l);
+        });
+      }
+    </script>
+  </body>
+</html>

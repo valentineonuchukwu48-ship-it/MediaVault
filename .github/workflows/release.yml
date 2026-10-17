@@ -1,0 +1,57 @@
+name: Release
+
+# Tag a version (e.g. `git tag v1.0.0 && git push --tags`) to build installers
+# for Windows, macOS and Linux and attach them to a GitHub Release.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+          - os: macos-latest
+            platform: darwin
+          - os: ubuntu-latest
+            platform: linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch media binaries (ffmpeg / ffprobe / yt-dlp)
+        run: node scripts/fetch-binaries.mjs --platform ${{ matrix.platform }}
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build engine bundle
+        run: npm run build:server
+
+      - name: Generate icon
+        run: npm run make:icon
+
+      - name: Package and publish
+        run: npx electron-builder --${{ matrix.platform }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Skip code signing on CI (unsigned builds). Configure CSC_* secrets to sign.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'

@@ -1,136 +1,139 @@
 # FacebookGrabContents
 
-**Grab Facebook posts and videos, archive them as evidence-grade PDFs, and merge clips into one file — all from your browser.**
+**Archive Facebook posts as evidence-grade PDFs, and download or merge Facebook videos (with sound) — as a desktop app that runs entirely on your own machine.**
 
-A self-hostable web app that:
-
-- 📄 **Archives Facebook posts to PDF** — a clean, print-ready dossier with cover page, engagement metrics, comments, QR verification, and a table of contents.
-- 🎬 **Downloads & merges Facebook videos** — extracts direct MP4 streams (Reels, Watch, post videos) with `yt-dlp`, then merges multiple clips into a single MP4 with synchronized, normalized audio via `FFmpeg`.
-- 🗣️ **Adds AI voiceovers** — writes a narration script (or auto-drafts one) and dubs natural text-to-speech onto any video.
-- 🔐 **Tamper-evident Evidence Vault** — every sealed post is written to a SHA-256 hash chain, so any later edit or deletion is cryptographically detectable. Includes a local retrieval ("Ask your archive") that answers with cited, sealed sources.
-- 🤖 **Bring Your Own Key (BYOK) AI** — works with Google Gemini natively, or any OpenAI-compatible provider (OpenRouter, Groq, NVIDIA NIM, DeepSeek, Cerebras, Mistral, …).
-
-> **Note:** AI features require an API key. Keep it private — the server forwards it per request and never stores it. You can also set a server-wide `GEMINI_API_KEY`.
+No servers, no accounts, no uploads. Your posts, videos and API keys never leave your computer.
 
 ---
 
-## Tech stack
+## ✨ Features
+
+- 📄 **Post → PDF dossier** — a clean, print-ready document with cover sheet, engagement metrics, comments, QR verification and a table of contents.
+- 🎬 **Video download & merge** — extracts direct MP4 streams (Reels, Watch, post videos) with `yt-dlp`, then merges multiple clips into one MP4 with synchronised, normalised audio via `FFmpeg`.
+- 🔊 **Audio guaranteed** — Facebook serves video and audio as separate streams; the app detects that and muxes them back together, so downloads are never silent.
+- 🗣️ **AI voiceovers** — drafts a narration script and dubs natural text-to-speech onto any clip.
+- 🔐 **Tamper-evident Evidence Vault** — every sealed post is appended to a SHA-256 hash chain, so any later edit or deletion is cryptographically detectable. Includes local retrieval ("Ask your archive") that answers with cited, sealed sources.
+- 🤖 **Bring Your Own Key AI** — Google Gemini natively, or any OpenAI-compatible provider (OpenRouter, Groq, NVIDIA NIM, DeepSeek, Cerebras, Mistral, …).
+- 🍪 **One-click Facebook login** — reuses your own browser session via `--cookies-from-browser`, which fixes private, age-gated and blocked videos with no manual cookie export.
+
+---
+
+## 📥 Download & install
+
+1. Go to the **[Releases](../../releases)** page.
+2. Download either:
+   - **`FacebookGrabContents-<version>-x64-setup.exe`** — installer (recommended), or
+   - **`FacebookGrabContents-<version>-portable.exe`** — no installation.
+3. Run it. Windows may show a *"Windows protected your PC"* SmartScreen prompt because the build is not code-signed — click **More info → Run anyway**.
+
+> The app bundles everything it needs (`ffmpeg`, `ffprobe`, `yt-dlp`) — you do **not** need to install anything else.
+
+### First run
+1. Open the **Desktop** button (bottom-right).
+2. Under **Facebook login**, pick the browser you're signed into Facebook with (e.g. Chrome) → **Save**.
+3. Paste a Facebook post or video URL and go.
+
+### Where your data lives
+Everything is stored under your user profile:
+
+```
+%APPDATA%\FacebookGrabContents\data\
+├── vault\            sealed posts (hash chain)
+├── merged_outputs\   merged / downloaded videos
+├── audio\            generated voiceovers
+├── uploads\
+└── settings.json     your preferences
+```
+
+Use **Desktop → Data folder / Downloads** to open them, or **File** in the menu bar.
+
+---
+
+## 🧱 Architecture
+
+```
+Electron shell (electron/main.cjs)
+   │  shows a splash + progress bar
+   ├─ spawns ─► Express engine (build/server.mjs)  on 127.0.0.1:<random port>
+   │               ├── React UI (built by Vite → dist/)
+   │               ├── ffmpeg / ffprobe  (bundled bin/)
+   │               └── yt-dlp            (bundled bin/)
+   └─ opens the UI in a native window
+```
+
+The engine runs as an isolated child process, so a heavy merge can never freeze the window.
 
 | Layer | Tech |
 |---|---|
+| Desktop shell | Electron, electron-builder, electron-updater |
 | Frontend | React 19, Vite, Tailwind CSS v4, lucide-react, jsPDF, html2canvas |
-| Backend | Node.js, Express, TypeScript (`tsx`) |
+| Engine | Node.js, Express, TypeScript (bundled with esbuild) |
 | Media | `FFmpeg` / `FFprobe`, `yt-dlp` |
-| Storage | Append-only NDJSON hash chain (`vault/`) |
+| Vault storage | Append-only NDJSON SHA-256 hash chain |
 
 ---
 
-## Run locally
+## 🛠️ Build from source
 
-**Prerequisites:** Node.js 20+, and `ffmpeg`/`ffprobe` on your `PATH`.
-For video extraction, place a `yt-dlp` binary in the project root (or on your `PATH`).
+**Prerequisites:** Node.js 20+ (22 recommended).
 
 ```bash
+git clone https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents.git
+cd facebookgrabcontents
 npm install
-cp .env.example .env        # optional: add a GEMINI_API_KEY
-npm run dev                 # http://localhost:3000
+npm run fetch:binaries        # downloads ffmpeg + ffprobe + yt-dlp into bin/
+npm run desktop               # build everything and launch the desktop app
 ```
 
-Production build:
+### Common scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Browser dev server with hot reload (`http://localhost:3000`) |
+| `npm run desktop` | Build frontend + engine, then launch Electron |
+| `npm run pack:dir` | Produce an unpacked app in `release/` (fast smoke test) |
+| `npm run dist:win` | Build the Windows installer + portable `.exe` |
+| `npm run dist:mac` / `dist:linux` | Build for macOS / Linux |
+| `npm run lint` | Type-check (`tsc --noEmit`) |
+| `npm test` | Run the unit tests (Vitest) |
+| `npm run make:icon` | Regenerate `build-resources/icon.png` with ffmpeg |
+
+### Releasing (free GitHub account is fine)
+Tag a version and push — CI builds installers for all three platforms and attaches them to a Release:
 
 ```bash
-npm run build               # outputs dist/
-NODE_ENV=production npm start
+git tag v1.0.0
+git push --tags
 ```
 
 ---
 
-## Deploy
+## 🔐 Security notes
 
-### Docker (recommended — any container host)
-
-The included `Dockerfile` bundles FFmpeg and installs the Linux `yt-dlp` binary.
-
-```bash
-docker build -t facebookgrabcontents .
-docker run -p 3000:3000 -e GEMINI_API_KEY=your_key facebookgrabcontents
-```
-
-Works on **Render**, **Railway**, **Koyeb**, **Fly.io**, or any VPS. On Render, `render.yaml` gives a one-click blueprint — connect this repo and deploy.
-
-For a persistent Evidence Vault in production, mount a volume at `/app/vault` (the container filesystem is otherwise ephemeral).
-
-### Video extraction on a server (cookies)
-
-Facebook blocks datacenter/cloud IPs, so `yt-dlp` may fail on a hosted server even
-though it works on your laptop. Supplying **browser cookies** fixes almost all of
-these cases. Export a Netscape-format `cookies.txt` (e.g. with the "Get cookies.txt"
-browser extension) while logged into Facebook, then provide it one of three ways:
-
-- `YTDLP_COOKIES=/path/to/cookies.txt`
-- `YTDLP_COOKIES_BASE64=<base64 of the file>` (best for host secret UIs — e.g. Render)
-- place `cookies.txt` (or `secrets/cookies.txt`) in the project root
-
-Generate the base64 value:
-
-```bash
-base64 -w0 cookies.txt     # macOS: base64 cookies.txt | tr -d '\n'
-```
-
-### Cloudflare Pages (free — for the frontend)
-
-Cloudflare **Workers/Pages cannot run the backend** (no `ffmpeg`/`yt-dlp`, no disk),
-so the app's engine runs on a container host (see Docker/Render above) and Pages
-serves the static UI, proxying API calls to the backend via
-`functions/api/[[path]].ts`.
-
-1. Deploy the backend first and copy its URL (e.g. `https://facebookgrabcontents.onrender.com`).
-2. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
-3. Select this repository.
-   - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-   - **Root directory:** *(leave empty)*
-4. **Environment variables (Production):**
-   - `API_BACKEND_URL` = your backend URL from step 1
-   - `NODE_VERSION` = `22`
-5. **Save and Deploy.** Your app is live at `https://<project>.pages.dev`.
-
-> Prefer the simplest setup? Skip Pages and just run the Docker image on Render,
-> then point Cloudflare DNS at it — one deploy, no split.
-
-### ⚠️ Cloudflare (what it cannot do)
-
-Cloudflare **Workers / Pages cannot run this app's backend** — its edge runtime has no native binaries (`ffmpeg`, `yt-dlp`) and no writable disk. Use Cloudflare for DNS/CDN in front of your container host, or for the static frontend as described above.
+- [x] SSRF protection on all proxy/stream/AI endpoints (blocks private, loopback and link-local addresses) — rejected URLs return a clean `400`.
+- [x] Rate limiting on AI and media endpoints.
+- [x] Temporary merged outputs auto-expire.
+- [x] Renderer runs with `contextIsolation` on, `nodeIntegration` off, and a minimal preload bridge.
+- [ ] Windows builds are **unsigned** by default, so SmartScreen warns on first run. Add a code-signing certificate to remove it.
 
 ---
 
-## Configuration
+## 👤 Author
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `PORT` | `3000` | HTTP port |
-| `GEMINI_API_KEY` | — | Optional server-wide Gemini key |
-| `AI_RATE_LIMIT_PER_MIN` | `30` | Rate limit for AI endpoints |
-| `MEDIA_RATE_LIMIT_PER_MIN` | `120` | Rate limit for video/proxy endpoints |
-| `MERGED_OUTPUT_TTL_MS` | `7200000` | How long merged videos live in `/tmp` |
-| `YTDLP_COOKIES` | — | Path to a Netscape `cookies.txt` for yt-dlp |
-| `YTDLP_COOKIES_BASE64` | — | Base64 of `cookies.txt` (for host secret UIs) |
-| `API_BACKEND_URL` | — | **(Cloudflare Pages only)** backend origin to proxy `/api` to |
+**Valentine Onuchukwu**
+ProsperChild Technology — Nigeria
+✉️ [valentineonuchukwu@gmail.com](mailto:valentineonuchukwu@gmail.com)
 
----
+## ☕ Support
 
-## Security
+This app is free and always will be. If it saved you time, you can buy me a coffee:
 
-This project is intended for self-hosting and personal/team use. Before exposing it publicly:
+**→ [https://flutterwave.com/donate/fysqhtbnfznn](https://flutterwave.com/donate/fysqhtbnfznn)**
 
-- [x] SSRF protection on proxy/stream/AI endpoints (blocks private, loopback and link-local addresses)
-- [x] Rate limiting on AI and media endpoints
-- [x] Temporary merged outputs auto-expire
-- [ ] The server trusts anyone who can reach it — add authentication (reverse-proxy basic auth, Cloudflare Access, or OAuth) for public deployments.
-- [ ] Never commit `.env` or API keys.
+Thank you — it genuinely keeps the project alive. 🙏
 
 ---
 
-## License
+## 📄 License
 
-MIT
+[MIT](LICENSE) © 2026 Valentine Onuchukwu — ProsperChild Technology, Nigeria
