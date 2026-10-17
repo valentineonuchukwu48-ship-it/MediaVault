@@ -17,3 +17,7 @@ services:
       # (each visitor supplies their own key in the AI Studio / Settings).
       - key: GEMINI_API_KEY
         sync: false
+      # Optional: base64 of a Netscape cookies.txt. Strongly recommended on cloud
+      # hosts — Facebook blocks datacenter IPs, and cookies fix most failures.
+      - key: YTDLP_COOKIES_BASE64
+        sync: false

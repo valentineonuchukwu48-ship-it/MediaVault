@@ -38,6 +38,43 @@ function getYtDlpPath(): string {
   return 'yt-dlp';
 }
 
+// Facebook aggressively blocks datacenter/cloud IPs. Supplying browser cookies
+// lets yt-dlp authenticate the same way a logged-in browser would, which is the
+// single most effective fix for "extraction works locally but not on a server".
+//
+// Provide cookies (Netscape cookies.txt format) in ANY of these ways:
+//   - env YTDLP_COOKIES=/path/to/cookies.txt
+//   - env YTDLP_COOKIES_BASE64=<base64 of cookies.txt>   (best for host secrets UI)
+//   - a file named cookies.txt (or secrets/cookies.txt) in the project root
+export function resolveCookiesPath(): string | null {
+  const explicit = (process.env.YTDLP_COOKIES || '').trim();
+  if (explicit) {
+    try {
+      if (fs.existsSync(explicit)) return explicit;
+    } catch {}
+  }
+
+  const b64 = (process.env.YTDLP_COOKIES_BASE64 || '').trim();
+  if (b64) {
+    try {
+      const target = path.resolve(process.env.TMPDIR || '/tmp', 'yt-dlp-cookies.txt');
+      fs.writeFileSync(target, Buffer.from(b64, 'base64').toString('utf8'));
+      return target;
+    } catch {}
+  }
+
+  const candidates = [
+    path.resolve(process.cwd(), 'cookies.txt'),
+    path.resolve(process.cwd(), 'secrets', 'cookies.txt'),
+  ];
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch {}
+  }
+  return null;
+}
+
 // Clean and extract URL from iframes or plugins
 export function cleanVideoUrl(input: string): string {
   let target = input.trim();
@@ -81,26 +118,29 @@ export async function extractVideoMetadata(rawInput: string): Promise<FacebookVi
   }
 
   const ytDlp = getYtDlpPath();
+  const cookiesPath = resolveCookiesPath();
 
   // Strategy 1: Attempt extraction with yt-dlp
   // Facebook "/share/v/..." links are redirects; yt-dlp resolves them.
   // We request JSON so we can pick a format that has BOTH audio + video.
   try {
-    const { stdout } = await execFileAsync(
-      ytDlp,
-      [
-        '--dump-single-json',
-        '--no-warnings',
-        '--no-playlist',
-        '--no-progress',
-        '--socket-timeout',
-        '15',
-        '--user-agent',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        url,
-      ],
-      { timeout: 45000, maxBuffer: 64 * 1024 * 1024 }
-    );
+    const ytDlpArgs = [
+      '--dump-single-json',
+      '--no-warnings',
+      '--no-playlist',
+      '--no-progress',
+      '--socket-timeout',
+      '15',
+      '--user-agent',
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    ];
+    if (cookiesPath) ytDlpArgs.push('--cookies', cookiesPath);
+    ytDlpArgs.push(url);
+
+    const { stdout } = await execFileAsync(ytDlp, ytDlpArgs, {
+      timeout: 45000,
+      maxBuffer: 64 * 1024 * 1024,
+    });
 
     if (stdout && stdout.trim()) {
       const data = JSON.parse(stdout.trim());

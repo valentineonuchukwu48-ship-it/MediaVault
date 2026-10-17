@@ -60,9 +60,47 @@ Works on **Render**, **Railway**, **Koyeb**, **Fly.io**, or any VPS. On Render, 
 
 For a persistent Evidence Vault in production, mount a volume at `/app/vault` (the container filesystem is otherwise ephemeral).
 
-### ⚠️ Cloudflare
+### Video extraction on a server (cookies)
 
-Cloudflare **Workers / Pages cannot run this app's backend** — its edge runtime has no native binaries (`ffmpeg`, `yt-dlp`) and no writable disk. You can use Cloudflare **for free DNS + CDN/proxy** in front of your container host, or host *only* the static `dist/` build on Pages with the API on a separate Node host (which requires enabling cross-origin access).
+Facebook blocks datacenter/cloud IPs, so `yt-dlp` may fail on a hosted server even
+though it works on your laptop. Supplying **browser cookies** fixes almost all of
+these cases. Export a Netscape-format `cookies.txt` (e.g. with the "Get cookies.txt"
+browser extension) while logged into Facebook, then provide it one of three ways:
+
+- `YTDLP_COOKIES=/path/to/cookies.txt`
+- `YTDLP_COOKIES_BASE64=<base64 of the file>` (best for host secret UIs — e.g. Render)
+- place `cookies.txt` (or `secrets/cookies.txt`) in the project root
+
+Generate the base64 value:
+
+```bash
+base64 -w0 cookies.txt     # macOS: base64 cookies.txt | tr -d '\n'
+```
+
+### Cloudflare Pages (free — for the frontend)
+
+Cloudflare **Workers/Pages cannot run the backend** (no `ffmpeg`/`yt-dlp`, no disk),
+so the app's engine runs on a container host (see Docker/Render above) and Pages
+serves the static UI, proxying API calls to the backend via
+`functions/api/[[path]].ts`.
+
+1. Deploy the backend first and copy its URL (e.g. `https://facebookgrabcontents.onrender.com`).
+2. Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
+3. Select this repository.
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+   - **Root directory:** *(leave empty)*
+4. **Environment variables (Production):**
+   - `API_BACKEND_URL` = your backend URL from step 1
+   - `NODE_VERSION` = `22`
+5. **Save and Deploy.** Your app is live at `https://<project>.pages.dev`.
+
+> Prefer the simplest setup? Skip Pages and just run the Docker image on Render,
+> then point Cloudflare DNS at it — one deploy, no split.
+
+### ⚠️ Cloudflare (what it cannot do)
+
+Cloudflare **Workers / Pages cannot run this app's backend** — its edge runtime has no native binaries (`ffmpeg`, `yt-dlp`) and no writable disk. Use Cloudflare for DNS/CDN in front of your container host, or for the static frontend as described above.
 
 ---
 
@@ -75,6 +113,9 @@ Cloudflare **Workers / Pages cannot run this app's backend** — its edge runtim
 | `AI_RATE_LIMIT_PER_MIN` | `30` | Rate limit for AI endpoints |
 | `MEDIA_RATE_LIMIT_PER_MIN` | `120` | Rate limit for video/proxy endpoints |
 | `MERGED_OUTPUT_TTL_MS` | `7200000` | How long merged videos live in `/tmp` |
+| `YTDLP_COOKIES` | — | Path to a Netscape `cookies.txt` for yt-dlp |
+| `YTDLP_COOKIES_BASE64` | — | Base64 of `cookies.txt` (for host secret UIs) |
+| `API_BACKEND_URL` | — | **(Cloudflare Pages only)** backend origin to proxy `/api` to |
 
 ---
 
