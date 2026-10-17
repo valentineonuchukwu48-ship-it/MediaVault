@@ -19,11 +19,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # `builder` is the electron-builder flag (--win/--mac/--linux);
+          # `platform` is the binary target used by fetch-binaries.mjs.
           - os: windows-latest
+            builder: win
             platform: win32
           - os: macos-latest
+            builder: mac
             platform: darwin
           - os: ubuntu-latest
+            builder: linux
             platform: linux
 
     steps:
@@ -36,6 +41,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # The evermeet.cx static macOS ffmpeg downloads now return HTTP 410, so a
+      # Homebrew ffmpeg is the reliable source; fetch-binaries.mjs copies it
+      # into bin/ when the download path fails.
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
 
       - name: Fetch media binaries (ffmpeg / ffprobe / yt-dlp)
         run: node scripts/fetch-binaries.mjs --platform ${{ matrix.platform }}
@@ -50,7 +62,7 @@ jobs:
         run: npm run make:icon
 
       - name: Package and publish
-        run: npx electron-builder --${{ matrix.platform }} --publish always
+        run: npx electron-builder --${{ matrix.builder }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Skip code signing on CI (unsigned builds). Configure CSC_* secrets to sign.

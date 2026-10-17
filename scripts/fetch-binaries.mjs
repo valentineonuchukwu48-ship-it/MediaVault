@@ -121,18 +121,47 @@ async function fetchFfmpegLinux() {
 
 async function fetchFfmpegMac() {
   if (!FORCE && (await has('ffmpeg')) && (await has('ffprobe'))) return log('ffmpeg/ffprobe already present');
+
+  // evermeet.cx, the usual source of static macOS ffmpeg builds, currently
+  // answers HTTP 410. Try it anyway, then fall back to whatever ffmpeg the
+  // machine already has (Homebrew installs it on CI).
   for (const [tool, url] of [
     ['ffmpeg', 'https://evermeet.cx/ffmpeg/getrelease/zip'],
     ['ffprobe', 'https://evermeet.cx/ffprobe/getrelease/zip'],
   ]) {
-    const zip = path.join(os.tmpdir(), `${tool}-mac.zip`);
-    await download(url, zip);
-    const outDir = path.join(os.tmpdir(), `${tool}-mac`);
-    fs.rmSync(outDir, { recursive: true, force: true });
-    extract(zip, outDir);
-    const found = findFile(outDir, tool);
-    if (!found) throw new Error(`${tool} not found in ${url}`);
-    install(found, tool);
+    if (!FORCE && (await has(tool))) continue;
+    try {
+      const zip = path.join(os.tmpdir(), `${tool}-mac.zip`);
+      await download(url, zip);
+      const outDir = path.join(os.tmpdir(), `${tool}-mac`);
+      fs.rmSync(outDir, { recursive: true, force: true });
+      extract(zip, outDir);
+      const found = findFile(outDir, tool);
+      if (!found) throw new Error(`${tool} not found in ${url}`);
+      install(found, tool);
+    } catch (err) {
+      log(`downloading ${tool} failed (${String(err?.message || err).slice(0, 140)}); falling back to a system copy`);
+    }
+  }
+
+  if (await has('ffmpeg')) if (await has('ffprobe')) return;
+
+  // System fallback: copy the installed ffmpeg/ffprobe into bin/ so the
+  // packaged app is self-contained.
+  const searchDirs = ['/opt/homebrew/bin', '/usr/local/bin'];
+  let copied = 0;
+  for (const tool of ['ffmpeg', 'ffprobe']) {
+    for (const dir of searchDirs) {
+      const src = path.join(dir, tool);
+      if (fs.existsSync(src)) {
+        install(src, tool);
+        copied++;
+        break;
+      }
+    }
+  }
+  if (copied < 2) {
+    throw new Error('Could not obtain ffmpeg/ffprobe for macOS (download failed and no system copy found)');
   }
 }
 
