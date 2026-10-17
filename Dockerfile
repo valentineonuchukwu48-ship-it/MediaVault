@@ -35,8 +35,9 @@ COPY . .
 RUN npm run build
 
 # Runtime config: production mode serves dist/ + the API.
+# PORT is intentionally NOT hardcoded — hosts like Render inject their own PORT;
+# the server falls back to 3000 when the variable is unset.
 ENV NODE_ENV=production
-ENV PORT=3000
 EXPOSE 3000
 
 # Non-root user for safety. /app/vault and /tmp must be writable by this user.
