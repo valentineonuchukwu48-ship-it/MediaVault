@@ -587,6 +587,17 @@ export default function App() {
         postContext={posts.find((p) => p.id === activePostId)}
       />
 
+      {/* Author credit */}
+      <footer className="no-print mt-10 mb-4 text-center text-[11px] leading-relaxed text-slate-500">
+        <p className="font-semibold tracking-wide text-slate-400">
+          FacebookGrabContents · by Valentine Onuchukwu
+        </p>
+        <p>
+          ProsperChild Technology — Nigeria ·{' '}
+          <span className="text-slate-400">valentineonuchukwu@gmail.com</span>
+        </p>
+      </footer>
+
       {/* Desktop-only controls (folders, browser cookies, updates) */}
       <DesktopPanel />
     </div>

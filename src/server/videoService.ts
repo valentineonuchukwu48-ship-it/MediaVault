@@ -58,6 +58,8 @@ export function resolveCookiesPath(): string | null {
   }
 
   const candidates = [
+    // Imported through the desktop app's "Import cookies.txt" button.
+    path.join(DATA_DIR, 'cookies.txt'),
     path.resolve(process.cwd(), 'cookies.txt'),
     path.resolve(process.cwd(), 'secrets', 'cookies.txt'),
     path.join(TEMP_DIR, 'cookies.txt'),
@@ -83,16 +85,27 @@ export function resolveCookiesPath(): string | null {
  */
 export function ytDlpCookieArgs(): string[] {
   let browser = (process.env.YTDLP_COOKIES_FROM_BROWSER || '').trim();
-  if (!browser) {
-    // Desktop settings file wins when the env var was not set at spawn time,
-    // so changing the browser in the UI takes effect without a restart.
-    try {
-      const settings = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'settings.json'), 'utf8'));
-      browser = (settings.cookiesFromBrowser || '').trim();
-    } catch {
-      /* no settings yet */
-    }
+  let settingsFile = '';
+  try {
+    // Desktop settings live in the writable data dir, so changing the login
+    // source in the UI takes effect immediately — no restart needed.
+    const settings = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'settings.json'), 'utf8'));
+    if (!browser) browser = (settings.cookiesFromBrowser || '').trim();
+    settingsFile = (settings.cookiesFile || '').trim();
+  } catch {
+    /* no settings yet */
   }
+
+  // An imported cookies.txt is the most reliable source: it is unaffected by
+  // Chrome 127+'s App-Bound Encryption, which blocks --cookies-from-browser
+  // while the browser is running ("Could not copy Chrome cookie database").
+  for (const f of [settingsFile, path.join(DATA_DIR, 'cookies.txt')]) {
+    if (!f) continue;
+    try {
+      if (fs.existsSync(f)) return ['--cookies', f];
+    } catch {}
+  }
+
   if (browser) return ['--cookies-from-browser', browser];
   const file = resolveCookiesPath();
   return file ? ['--cookies', file] : [];
@@ -115,6 +128,75 @@ export function cleanVideoUrl(input: string): string {
   } catch {}
 
   return target;
+}
+
+/** Why an extraction failed, mapped to a fixed set of user-actionable reasons. */
+export type ExtractionFailureCode =
+  | 'LOGIN_REQUIRED'
+  | 'BROWSER_COOKIES_LOCKED'
+  | 'UNAVAILABLE'
+  | 'PRIVATE'
+  | 'UNSUPPORTED'
+  | 'UNKNOWN';
+
+export class ExtractionError extends Error {
+  code: ExtractionFailureCode;
+  hint: string;
+  constructor(code: ExtractionFailureCode, message: string, hint: string) {
+    super(message);
+    this.name = 'ExtractionError';
+    this.code = code;
+    this.hint = hint;
+  }
+}
+
+/**
+ * Turn the raw (and very noisy) yt-dlp / scrape output into one clear reason
+ * plus a concrete next step the user can actually take.
+ */
+function classifyExtractionFailure(raw: string): ExtractionError {
+  const msg = (raw || '').toLowerCase();
+
+  if (msg.includes('could not copy') && msg.includes('cookie database')) {
+    return new ExtractionError(
+      'BROWSER_COOKIES_LOCKED',
+      'Your browser is holding its cookie file open, so your Facebook login could not be read.',
+      'Fully close the browser (check Task Manager for background Chrome/Edge processes) and try again — or import a cookies.txt file from the Desktop panel.',
+    );
+  }
+  if (msg.includes('login.php') || msg.includes('login required') || msg.includes('not logged in') || msg.includes('sign in')) {
+    return new ExtractionError(
+      'LOGIN_REQUIRED',
+      'Facebook needs you to be signed in to view this link.',
+      'Open the Desktop panel → “Facebook login”, choose the browser you use for Facebook, and save. Stories and private videos are invisible to logged-out visitors.',
+    );
+  }
+  if (msg.includes('private')) {
+    return new ExtractionError(
+      'PRIVATE',
+      'This video is private.',
+      'Sign in with an account that is allowed to view it (Desktop → Facebook login).',
+    );
+  }
+  if (msg.includes('unsupported url')) {
+    return new ExtractionError(
+      'UNSUPPORTED',
+      'This link type is not directly supported.',
+      'Stories and some share links expire after 24 hours, and story links only resolve while signed in. Open the video itself and copy that URL, or set up Facebook login.',
+    );
+  }
+  if (msg.includes('unavailable') || msg.includes("isn't available") || msg.includes('no video') || msg.includes('404')) {
+    return new ExtractionError(
+      'UNAVAILABLE',
+      'This video is no longer available.',
+      'It may have been deleted, made private — or, for Stories, expired after 24 hours.',
+    );
+  }
+  return new ExtractionError(
+    'UNKNOWN',
+    'Could not find a downloadable video at this link.',
+    'Check that the link opens in your browser. If it needs a login, set it up under Desktop → Facebook login.',
+  );
 }
 
 // Extract video metadata and direct MP4 streams
@@ -142,6 +224,8 @@ export async function extractVideoMetadata(rawInput: string): Promise<FacebookVi
 
   const ytDlp = getYtDlpPath();
   const cookieArgs = ytDlpCookieArgs();
+  // Collect every failure reason so the final error can be specific.
+  const failures: string[] = [];
 
   // Strategy 1: Attempt extraction with yt-dlp
   // Facebook "/share/v/..." links are redirects; yt-dlp resolves them.
@@ -256,6 +340,7 @@ export async function extractVideoMetadata(rawInput: string): Promise<FacebookVi
       };
     }
   } catch (err: any) {
+    failures.push(String(err?.stderr || err?.message || err));
     console.warn(`yt-dlp extraction warning for ${url}:`, err.message?.slice(0, 150));
   }
 
@@ -324,32 +409,14 @@ export async function extractVideoMetadata(rawInput: string): Promise<FacebookVi
       };
     }
   } catch (err: any) {
+    failures.push(String(err?.message || err));
     console.warn(`HTML scrape warning for ${url}:`, err.message?.slice(0, 150));
   }
 
-  // Strategy 3: Fallback with clear message and demo stream link
-  // If Facebook requires login, we still provide an extracted record with the clean URL and a functional sample so merging always works!
-  const parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
-  const idFromParam = parsedUrl.searchParams.get('v') || parsedUrl.searchParams.get('id') || id;
-  const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
-  const authorHint = pathParts.length > 0 && !['watch', 'video', 'reel', 'videos'].includes(pathParts[0])
-    ? pathParts[0].replace(/[._-]/g, ' ')
-    : 'Facebook Reel Creator';
-
-  return {
-    id: `fb_${idFromParam}`,
-    sourceUrl: url,
-    title: `Facebook Video (${idFromParam})`,
-    authorName: authorHint,
-    authorHandle: `@${authorHint.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-    thumbnailUrl: '',
-    videoUrl: `/samples/fb_clip_1.mp4`, // High quality local stream fallback for instant merge demo
-    videoUrlHd: `/samples/fb_clip_1.mp4`,
-    videoUrlSd: `/samples/fb_clip_2.mp4`,
-    duration: 5,
-    formatNote: 'MP4 Stream (Direct Preview)',
-    fetchedAt: now,
-  };
+  // Nothing worked. This used to return a bundled demo sample clip, which
+  // silently showed the WRONG video — far worse than an honest error. Fail
+  // loudly instead, with a reason the user can act on.
+  throw classifyExtractionFailure(failures.join('\n'));
 }
 
 // Download a remote or local video URL to local file path.

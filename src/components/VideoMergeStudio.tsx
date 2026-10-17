@@ -94,6 +94,8 @@ export const VideoMergeStudio: React.FC<VideoMergeStudioProps> = ({ onSwitchToDo
   const [mergeStatusText, setMergeStatusText] = useState('');
   const [mergedResult, setMergedResult] = useState<MergedVideoResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errorHint, setErrorHint] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Merge settings
@@ -295,6 +297,8 @@ export const VideoMergeStudio: React.FC<VideoMergeStudioProps> = ({ onSwitchToDo
 
     setIsExtracting(true);
     setErrorMsg(null);
+    setErrorHint(null);
+    setErrorCode(null);
 
     try {
       const res = await fetch('/api/video/extract', {
@@ -303,9 +307,12 @@ export const VideoMergeStudio: React.FC<VideoMergeStudioProps> = ({ onSwitchToDo
         body: JSON.stringify({ url: inputUrl.trim() }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to extract video from URL');
+        setErrorMsg(data.error || 'Failed to extract video from URL');
+        setErrorHint(data.hint || null);
+        setErrorCode(data.code || null);
+        return;
       }
 
       setVideoQueue((prev) => [data.video, ...prev]);
@@ -324,6 +331,8 @@ export const VideoMergeStudio: React.FC<VideoMergeStudioProps> = ({ onSwitchToDo
 
     setIsExtracting(true);
     setErrorMsg(null);
+    setErrorHint(null);
+    setErrorCode(null);
 
     try {
       const res = await fetch('/api/video/extract-multiple', {
@@ -332,17 +341,24 @@ export const VideoMergeStudio: React.FC<VideoMergeStudioProps> = ({ onSwitchToDo
         body: JSON.stringify({ rawText: batchText.trim() }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Failed to extract batch videos');
-      }
+      const data = await res.json().catch(() => ({}));
 
       if (data.videos && data.videos.length > 0) {
         setVideoQueue((prev) => [...data.videos, ...prev]);
         setBatchText('');
-      } else {
-        setErrorMsg('No valid Facebook video links found in text');
+        // Report any links that failed inside a partly-successful batch.
+        if (data.errors && data.errors.length > 0) {
+          setErrorMsg(`${data.errors.length} link(s) could not be extracted.`);
+          setErrorHint(data.errors[0]?.hint || null);
+          setErrorCode(data.errors[0]?.code || null);
+        }
+        return;
       }
+
+      const firstError = data.errors && data.errors[0];
+      setErrorMsg(firstError?.error || data.error || 'No valid Facebook video links found in text');
+      setErrorHint(firstError?.hint || data.hint || null);
+      setErrorCode(firstError?.code || data.code || null);
     } catch (err: any) {
       console.error(err);
       setErrorMsg(err.message || 'Error extracting batch videos');
@@ -604,15 +620,26 @@ export const VideoMergeStudio: React.FC<VideoMergeStudioProps> = ({ onSwitchToDo
           </div>
 
           <span className="text-xs text-slate-500 dark:text-slate-400 hidden sm:inline">
-            Supports: Reels, Watch, Facebook.com/videos, and Embed iframes
+            Reels · Watch · facebook.com/videos · iframes — Stories &amp; private videos need a login
           </span>
         </div>
 
         {errorMsg && (
-          <div className="flex items-center gap-3 p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-red-700 dark:text-red-300 text-sm">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />
-            <p className="flex-1">{errorMsg}</p>
-            <button onClick={() => setErrorMsg(null)} className="text-xs font-semibold hover:underline">
+          <div className="flex items-start gap-3 p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-xl text-red-700 dark:text-red-300 text-sm">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" />
+            <div className="flex-1 space-y-1">
+              <p className="font-medium">{errorMsg}</p>
+              {errorHint && <p className="text-xs opacity-90">{errorHint}</p>}
+              {(errorCode === 'LOGIN_REQUIRED' || errorCode === 'BROWSER_COOKIES_LOCKED') && (
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('fgc:open-desktop'))}
+                  className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
+                >
+                  Set up Facebook login
+                </button>
+              )}
+            </div>
+            <button onClick={() => { setErrorMsg(null); setErrorHint(null); setErrorCode(null); }} className="text-xs font-semibold hover:underline">
               Dismiss
             </button>
           </div>

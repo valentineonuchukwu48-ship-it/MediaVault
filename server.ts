@@ -10,6 +10,7 @@ import { GoogleGenAI } from '@google/genai';
 const execAsync = promisify(exec);
 import {
   extractVideoMetadata,
+  ExtractionError,
   mergeVideos,
   getMergedVideoPath,
   addVoiceoverToVideo,
@@ -630,9 +631,11 @@ app.post('/api/fetch-facebook', async (req, res) => {
       postDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
       postContent: ogDescription || ogTitle,
       images: ogImage ? [ogImage] : [],
-      likesCount: 184,
-      commentsCount: 32,
-      sharesCount: 15,
+      // Facebook never exposes engagement counts to logged-out crawlers; leave
+      // them at 0 rather than inventing numbers in an "archival" document.
+      likesCount: 0,
+      commentsCount: 0,
+      sharesCount: 0,
       privacy: 'public',
       isProtected: false,
       extractedSource: 'og_crawler',
@@ -673,10 +676,11 @@ app.post('/api/fetch-facebook', async (req, res) => {
         authorHandle: `@${authorHint.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
         postDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         postContent: `Post from Facebook [ID: ${fbid}]\n\n(Note: This post is protected by Facebook login. You can copy the Facebook Embed Code or upload a screenshot to extract the full text and download to PDF.)`,
-        images: ['/src/assets/images/fb_math_worksheet_1791646396764.jpg'],
-        likesCount: 95,
-        commentsCount: 14,
-        sharesCount: 4,
+        // No image and no invented counts: we genuinely could not read this post.
+        images: [],
+        likesCount: 0,
+        commentsCount: 0,
+        sharesCount: 0,
         privacy: 'public',
         isProtected: true,
         extractedSource: 'url_params',
@@ -1658,8 +1662,14 @@ app.post('/api/video/extract', async (req, res) => {
     const video = await extractVideoMetadata(url);
     res.json({ success: true, video });
   } catch (err: any) {
-    console.error('Video extraction error:', err);
-    res.status(500).json({ error: err.message || 'Failed to extract video' });
+    console.error('Video extraction error:', err?.message || err);
+    if (err instanceof ExtractionError) {
+      // 422 = "the link is understood, but not resolvable right now"; the UI
+      // shows err.hint so the user knows exactly what to do about it.
+      res.status(422).json({ error: err.message, code: err.code, hint: err.hint });
+      return;
+    }
+    res.status(err?.status || 500).json({ error: err.message || 'Failed to extract video' });
   }
 });
 
@@ -1689,10 +1699,21 @@ app.post('/api/video/extract-multiple', async (req, res) => {
       .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
       .map((r) => r.value);
 
+    // Surface why individual links failed instead of dropping them silently.
+    const errors = results
+      .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+      .map((r) => {
+        const e = r.reason;
+        return e instanceof ExtractionError
+          ? { code: e.code, error: e.message, hint: e.hint }
+          : { code: 'UNKNOWN' as const, error: String(e?.message || e), hint: '' };
+      });
+
     res.json({
-      success: true,
+      success: videos.length > 0,
       count: videos.length,
       videos,
+      errors,
     });
   } catch (err: any) {
     console.error('Batch extraction error:', err);

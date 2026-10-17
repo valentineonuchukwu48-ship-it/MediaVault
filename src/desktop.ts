@@ -7,7 +7,16 @@
 
 export interface DesktopSettings {
   cookiesFromBrowser?: string;
+  cookiesFile?: string;
   geminiApiKey?: string;
+}
+
+export interface CookiesPickResult {
+  ok: boolean;
+  canceled?: boolean;
+  path?: string;
+  name?: string;
+  error?: string;
 }
 
 export interface EngineInfo {
@@ -32,6 +41,8 @@ export interface DesktopBridge {
   openOutputFolder(): Promise<string>;
   openExternal(url: string): Promise<boolean | void>;
   checkForUpdates(): Promise<void>;
+  pickCookiesFile(): Promise<CookiesPickResult>;
+  clearCookies(): Promise<{ ok: boolean }>;
   onUpdate(cb: (status: UpdateStatus) => void): () => void;
 }
 

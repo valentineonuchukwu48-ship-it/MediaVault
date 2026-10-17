@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee } from 'lucide-react';
+import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2 } from 'lucide-react';
 import {
   getDesktop,
   isDesktop,
@@ -21,6 +21,7 @@ export const DesktopPanel: React.FC = () => {
   const [engine, setEngine] = useState<EngineInfo | null>(null);
   const [settings, setSettings] = useState<DesktopSettings>({});
   const [browser, setBrowser] = useState('');
+  const [cookiesFile, setCookiesFile] = useState('');
   const [saved, setSaved] = useState(false);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
 
@@ -34,10 +35,18 @@ export const DesktopPanel: React.FC = () => {
       .then((s) => {
         setSettings(s);
         setBrowser(s.cookiesFromBrowser || '');
+        setCookiesFile(s.cookiesFile || '');
       })
       .catch(() => {});
     const off = bridge.onUpdate((status) => setUpdate(status));
     return off;
+  }, []);
+
+  // Other parts of the UI (e.g. a failed extraction) can ask the panel to open.
+  useEffect(() => {
+    const handler = () => setOpen(true);
+    window.addEventListener('fgc:open-desktop', handler);
+    return () => window.removeEventListener('fgc:open-desktop', handler);
   }, []);
 
   if (!isDesktop()) return null;
@@ -55,6 +64,26 @@ export const DesktopPanel: React.FC = () => {
     if (bridge) bridge.openExternal(SUPPORT_URL);
     else window.open(SUPPORT_URL, '_blank', 'noopener');
   };
+
+  const importCookies = async () => {
+    const bridge = getDesktop();
+    if (!bridge) return;
+    const res = await bridge.pickCookiesFile();
+    if (res.ok && res.path) {
+      setCookiesFile(res.path);
+      setSettings((s) => ({ ...s, cookiesFile: res.path }));
+    }
+  };
+
+  const clearCookies = async () => {
+    const bridge = getDesktop();
+    if (!bridge) return;
+    await bridge.clearCookies();
+    setCookiesFile('');
+    setSettings((s) => ({ ...s, cookiesFile: '' }));
+  };
+
+  const cookieFileName = cookiesFile ? cookiesFile.split(/[\\/]/).pop() : '';
 
   return (
     <>
@@ -135,6 +164,36 @@ export const DesktopPanel: React.FC = () => {
                   'Save login setting'
                 )}
               </button>
+
+              {/* cookies.txt fallback — Chrome/Edge lock their cookie DB */}
+              <div className="space-y-1.5 border-t border-slate-800/80 pt-2.5">
+                <p className="text-[10.5px] leading-relaxed text-slate-500">
+                  Chrome or Edge replying <em>“Could not copy cookie database”</em>? Those browsers lock
+                  it with App-Bound Encryption. Import a{' '}
+                  <span className="text-slate-400 font-medium">cookies.txt</span> instead — it takes
+                  priority and just works.
+                </p>
+                {cookieFileName && (
+                  <p className="flex items-center gap-1.5 text-[10.5px] text-emerald-300">
+                    <Check className="w-3 h-3" /> Using {cookieFileName}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={importCookies}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-medium transition-colors border border-slate-700/60"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-cyan-300" /> Import cookies.txt
+                  </button>
+                  <button
+                    onClick={clearCookies}
+                    disabled={!cookiesFile}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-100 text-xs font-medium transition-colors border border-slate-700/60"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-300" /> Clear
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Engine + updates */}
@@ -148,6 +207,8 @@ export const DesktopPanel: React.FC = () => {
                 FacebookGrabContents — by Valentine Onuchukwu
                 <br />
                 ProsperChild Technology, Nigeria
+                <br />
+                valentineonuchukwu@gmail.com
               </p>
               <button
                 onClick={openSupport}

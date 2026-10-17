@@ -21,6 +21,10 @@ const api = {
   openExternal: (url) => ipcRenderer.invoke('app:openExternal', url),
   checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
 
+  /** Import a cookies.txt file (login fallback when browser cookies are locked). */
+  pickCookiesFile: () => ipcRenderer.invoke('cookies:pick'),
+  clearCookies: () => ipcRenderer.invoke('cookies:clear'),
+
   /** Subscribe to update progress. Returns an unsubscribe function. */
   onUpdate: (callback) => {
     const handler = (_event, data) => callback(data);

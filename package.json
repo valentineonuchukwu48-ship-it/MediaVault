@@ -6,8 +6,10 @@
   "description": "Archive Facebook posts to tamper-evident PDFs and download or merge videos with sound — entirely on your own machine.",
   "author": {
     "name": "Valentine Onuchukwu",
-    "email": "valentineonuchukwu@gmail.com"
+    "email": "valentineonuchukwu@gmail.com",
+    "url": "https://flutterwave.com/donate/fysqhtbnfznn"
   },
+  "company": "ProsperChild Technology, Nigeria",
   "contributors": [
     "Valentine Onuchukwu — ProsperChild Technology, Nigeria"
   ],

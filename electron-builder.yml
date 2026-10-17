@@ -35,6 +35,8 @@ win:
     - target: portable
       arch: [x64]
   icon: build-resources/icon.png
+  publisherName: ProsperChild Technology, Nigeria
+  legalTrademarks: FacebookGrabContents — Valentine Onuchukwu, ProsperChild Technology, Nigeria
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
 nsis:
@@ -44,6 +46,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: FacebookGrabContents
+  uninstallDisplayName: FacebookGrabContents — ProsperChild Technology
   runAfterFinish: true
   deleteAppDataOnUninstall: false
   artifactName: ${productName}-${version}-${arch}-setup.${ext}

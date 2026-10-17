@@ -116,6 +116,7 @@ function engineEnv(port) {
     FGC_PUBLIC_DIR: ROOTS.publicDir,
   };
   if (settings.cookiesFromBrowser) env.YTDLP_COOKIES_FROM_BROWSER = settings.cookiesFromBrowser;
+  if (settings.cookiesFile) env.YTDLP_COOKIES = settings.cookiesFile;
   if (settings.geminiApiKey) env.GEMINI_API_KEY = settings.geminiApiKey;
   return env;
 }
@@ -206,6 +207,13 @@ function createMainWindow(port) {
 
   mainWindow.loadURL(`http://127.0.0.1:${port}`);
 
+  // Keep the author credit in the OS title bar, even though the page sets its
+  // own <title> once it loads.
+  mainWindow.on('page-title-updated', (event) => {
+    event.preventDefault();
+    mainWindow.setTitle(`${APP_NAME} — by ProsperChild Technology`);
+  });
+
   mainWindow.once('ready-to-show', () => {
     if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy();
     mainWindow.show();
@@ -272,7 +280,10 @@ function showAbout() {
     message: `${APP_NAME} ${app.getVersion()}`,
     detail:
       `Facebook post archiver + video downloader/merger.\n\n` +
-      `by Valentine Onuchukwu — ProsperChild Technology, Nigeria\n\n` +
+      `Created by Valentine Onuchukwu\n` +
+      `ProsperChild Technology — Nigeria\n` +
+      `✉  valentineonuchukwu@gmail.com\n` +
+      `☕  https://flutterwave.com/donate/fysqhtbnfznn\n\n` +
       `Engine: 127.0.0.1:${enginePort}\nData folder: ${DATA_DIR}\n` +
       `Electron ${process.versions.electron} · Chromium ${process.versions.chrome} · Node ${process.versions.node}`,
     buttons: ['OK'],
@@ -374,6 +385,43 @@ function registerIpc() {
     // the engine also reads settings.json live for cookie lookups.
     return saved;
   });
+
+  // Import a Netscape-format cookies.txt exported from the browser. This is the
+  // reliable fallback when Chrome 127+'s App-Bound Encryption blocks
+  // --cookies-from-browser ("Could not copy Chrome cookie database").
+  ipcMain.handle('cookies:pick', async () => {
+    const result = await dialog.showOpenDialog(mainWindow || undefined, {
+      title: 'Select a cookies.txt file',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Cookies file', extensions: ['txt'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || !result.filePaths.length) return { ok: false, canceled: true };
+    const src = result.filePaths[0];
+    try {
+      const dest = path.join(DATA_DIR, 'cookies.txt');
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+      fs.copyFileSync(src, dest);
+      writeSettings({ cookiesFile: dest });
+      return { ok: true, path: dest, name: path.basename(src) };
+    } catch (err) {
+      return { ok: false, error: String(err && err.message ? err.message : err) };
+    }
+  });
+
+  ipcMain.handle('cookies:clear', () => {
+    const dest = path.join(DATA_DIR, 'cookies.txt');
+    try {
+      if (fs.existsSync(dest)) fs.unlinkSync(dest);
+    } catch {
+      /* already gone */
+    }
+    writeSettings({ cookiesFile: '' });
+    return { ok: true };
+  });
+
   ipcMain.handle('app:checkForUpdates', () => checkForUpdates(true));
 }
 
