@@ -304,6 +304,16 @@ function checkForUpdates(interactive) {
   } catch {
     return;
   }
+
+  // Unpacked (--dir) builds have no app-update.yml, so electron-updater would
+  // throw an ENOENT into the console. Stay quiet in that case.
+  if (!fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'))) {
+    if (interactive) {
+      dialog.showMessageBox({ type: 'info', message: 'This build has no update channel configured.' });
+    }
+    return;
+  }
+
   autoUpdater.autoDownload = true;
   autoUpdater.on('update-available', (info) => {
     if (mainWindow) mainWindow.webContents.send('update:status', { state: 'available', version: info.version });

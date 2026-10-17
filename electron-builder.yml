@@ -35,7 +35,8 @@ win:
     - target: portable
       arch: [x64]
   icon: build-resources/icon.png
-  publisherName: ProsperChild Technology, Nigeria
+  signtoolOptions:
+    publisherName: ProsperChild Technology, Nigeria
   legalTrademarks: FacebookGrabContents — Valentine Onuchukwu, ProsperChild Technology, Nigeria
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
