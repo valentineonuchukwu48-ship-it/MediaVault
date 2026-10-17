@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { lookup } from 'dns/promises';
 import { GoogleGenAI } from '@google/genai';
 
 const execAsync = promisify(exec);
@@ -16,6 +17,16 @@ import {
   saveVideoLocally,
   probeMedia,
 } from './src/server/videoService';
+import {
+  sealPost,
+  getChain,
+  verifyChain,
+  latestForPost,
+  recordChange,
+  contentHashOf,
+  loadChain,
+} from './src/server/vaultStore';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -24,6 +35,113 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// AI credentials: the shipped .env / .env.example contains a literal placeholder
+// (e.g. MY_GEMINI_API_KEY). Treating that as a real key makes every AI request
+// fail with an opaque upstream error dump instead of the friendly "add your key"
+// guidance. cleanKey() normalizes user/env keys and discards placeholders.
+const PLACEHOLDER_KEY = /^(my[_-]?[a-z0-9_]*key|your[_-]?[a-z0-9_]*key|change[_-]?me|replace[_-]?me|x{3,}|sk-?x+)$/i;
+function cleanKey(raw?: string | null): string {
+  const v = (raw || '').trim();
+  if (!v || PLACEHOLDER_KEY.test(v)) return '';
+  return v;
+}
+
+// SSRF guard: this server proxies/streams user-supplied URLs (images, videos)
+// and calls user-supplied AI base URLs. On a public host that becomes a way to
+// reach internal services (e.g. cloud metadata at 169.254.169.254) or localhost.
+// assertPublicUrl() rejects non-http(s) schemes, internal hostnames, and any
+// hostname that resolves to a private / loopback / link-local address.
+const PRIVATE_ADDR = /^(?:0\.|10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)|^(?:::1|fe80:|f[cd][0-9a-f]{2}:)/i;
+async function assertPublicUrl(raw: string): Promise<string> {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error('Invalid URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Only http(s) URLs are allowed');
+  }
+  const host = parsed.hostname.replace(/^\[|\]$/g, '');
+  if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|.*\.localdomain)$/i.test(host)) {
+    throw new Error('Blocked internal hostname');
+  }
+  const literalIp = /^[0-9.]+$/.test(host) || host.includes(':');
+  let addresses: string[] = [];
+  if (literalIp) {
+    addresses = [host];
+  } else {
+    try {
+      const records = await lookup(host, { all: true });
+      addresses = records.map((r) => r.address);
+    } catch {
+      addresses = []; // unresolvable — let fetch() surface the real error
+    }
+  }
+  if (addresses.some((a) => PRIVATE_ADDR.test(a))) {
+    throw new Error('Blocked private/loopback address');
+  }
+  return parsed.toString();
+}
+
+// ---- Security hardening (senior-dev standard) ----
+// 1. Restrict to same-origin only: block cross-site request forgery by
+//    rejecting any /api request whose Origin/Referer is a different host.
+app.use('/api', (req, res, next) => {
+  const origin = req.headers.origin || req.headers.referer;
+  if (origin) {
+    try {
+      const host = new URL(origin).host;
+      if (host !== req.headers.host) {
+        res.status(403).json({ error: 'Cross-origin API requests are not allowed' });
+        return;
+      }
+    } catch {
+      res.status(400).json({ error: 'Invalid Origin header' });
+      return;
+    }
+  }
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.removeHeader('X-Powered-By');
+  next();
+});
+
+// 2. Rate limiters: fixed-window in-memory, so a public host can't be abused to
+//    burn the user's API key (AI) or to hammer expensive FFmpeg/download routes.
+const RATE_WINDOW_MS = 60_000;
+function makeRateLimiter(max: number, label: string) {
+  const buckets = new Map<string, { count: number; resetAt: number }>();
+  return (req: any, res: any, next: any) => {
+    const key = req.ip || req.socket?.remoteAddress || 'unknown';
+    const now = Date.now();
+    let bucket = buckets.get(key);
+    if (!bucket || now > bucket.resetAt) {
+      bucket = { count: 0, resetAt: now + RATE_WINDOW_MS };
+      buckets.set(key, bucket);
+    }
+    bucket.count += 1;
+    if (bucket.count > max) {
+      res.status(429).json({ error: `${label} rate limit exceeded (${max} req/min). Try again in a minute.` });
+      return;
+    }
+    next();
+  };
+}
+const aiRateLimit = makeRateLimiter(Number(process.env.AI_RATE_LIMIT_PER_MIN || 30), 'AI');
+const mediaRateLimit = makeRateLimiter(Number(process.env.MEDIA_RATE_LIMIT_PER_MIN || 120), 'Media');
+app.use('/api/ai', aiRateLimit);
+app.use('/api/chat', aiRateLimit);
+app.use('/api/vault', aiRateLimit);
+app.use('/api/video', mediaRateLimit);
+app.use('/api/proxy-image', mediaRateLimit);
+app.use('/api/proxy-video', mediaRateLimit);
+app.use('/api/fetch-facebook', mediaRateLimit);
+app.use('/api/fetch-multiple-embeds', mediaRateLimit);
+app.use('/api/generate-music', mediaRateLimit);
+
 
 app.use(express.json({ limit: '100mb' }));
 const uploadsDir = path.resolve(__dirname, 'public/uploads');
@@ -38,6 +156,24 @@ app.use('/samples', express.static(path.resolve(__dirname, 'public/samples')));
 app.use('/uploads', express.static(uploadsDir));
 app.use('/audio', express.static(audioDir));
 app.use(express.static(path.resolve(__dirname, 'public')));
+
+// Periodic cleanup of temporary merged/voiceover outputs so a long-lived public
+// host does not fill its disk. Files older than MERGED_OUTPUT_TTL_MS are removed.
+const MERGED_OUTPUT_TMP = '/tmp/merged_outputs';
+const MERGED_OUTPUT_TTL_MS = Number(process.env.MERGED_OUTPUT_TTL_MS || 2 * 60 * 60 * 1000);
+const cleanupTimer = setInterval(() => {
+  try {
+    if (!fs.existsSync(MERGED_OUTPUT_TMP)) return;
+    const now = Date.now();
+    for (const name of fs.readdirSync(MERGED_OUTPUT_TMP)) {
+      const p = path.join(MERGED_OUTPUT_TMP, name);
+      try {
+        if (now - fs.statSync(p).mtimeMs > MERGED_OUTPUT_TTL_MS) fs.rmSync(p, { force: true, recursive: true });
+      } catch {}
+    }
+  } catch {}
+}, 30 * 60 * 1000);
+cleanupTimer.unref();
 
 // Helper to extract clean URL, FBID, set, and parameters from any string (URL or iframe)
 function extractFacebookMetadata(input: string) {
@@ -356,6 +492,7 @@ app.get('/api/proxy-image', async (req, res) => {
   }
 
   try {
+    await assertPublicUrl(imageUrl);
     const parsed = new URL(imageUrl);
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       res.status(400).send('Invalid URL protocol');
@@ -606,7 +743,7 @@ app.post('/api/fetch-multiple-embeds', async (req, res) => {
 app.post('/api/generate-music', async (req, res) => {
   const { prompt, modelType = 'clip', apiKey } = req.body;
   const model = modelType === 'pro' ? 'lyria-3-pro-preview' : 'lyria-3-clip-preview';
-  const keyToUse = apiKey?.trim() || process.env.GEMINI_API_KEY;
+  const keyToUse = cleanKey(apiKey) || cleanKey(process.env.GEMINI_API_KEY);
 
   if (!keyToUse) {
     res.status(400).json({ error: 'A Gemini API key is required. Add one in the AI Studio or configure GEMINI_API_KEY.' });
@@ -721,6 +858,7 @@ async function generateAiText(opts: {
 
   if (provider !== 'gemini') {
     const root = (baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
+    await assertPublicUrl(root);
     const messages: any[] = [];
     if (systemInstruction) messages.push({ role: 'system', content: systemInstruction });
     if (imageList.length > 0) {
@@ -790,7 +928,7 @@ async function generateAiText(opts: {
 app.post('/api/ai/test-connection', async (req, res) => {
   const { apiKey, modelId, provider = 'gemini', baseUrl } = req.body;
   const isGemini = provider === 'gemini';
-  const keyToUse = apiKey?.trim() || (isGemini ? process.env.GEMINI_API_KEY : undefined);
+  const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
   const targetModel = modelId?.trim() || (isGemini ? 'gemini-3.8-flash' : '');
 
   if (!keyToUse) {
@@ -836,7 +974,7 @@ app.post('/api/ai/test-connection', async (req, res) => {
 app.post('/api/ai/models', async (req, res) => {
   const { apiKey, provider = 'gemini', baseUrl } = req.body;
   const isGemini = provider === 'gemini';
-  const keyToUse = apiKey?.trim() || (isGemini ? process.env.GEMINI_API_KEY : undefined);
+  const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
 
   if (!keyToUse) {
     res.status(400).json({ success: false, error: 'No API Key provided to list models.' });
@@ -865,6 +1003,7 @@ app.post('/api/ai/models', async (req, res) => {
     }
 
     const root = (baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
+    await assertPublicUrl(root);
     let resp: Response;
     try {
       resp = await fetch(`${root}/models`, {
@@ -896,7 +1035,213 @@ app.post('/api/ai/models', async (req, res) => {
 });
 
 // ==========================================
-// STREAMING CHAT ENDPOINT (ChatGPT-style)
+// EVIDENCE VAULT API — tamper-evident archiving
+// Hash-chained (SHA-256) sealed archive with edit/delete detection and
+// retrieval over the sealed corpus.
+// ==========================================
+
+// Health & readiness endpoint (senior-dev standard)
+app.get('/api/health', (_req, res) => {
+  const chain = verifyChain();
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    vault: { entries: chain.count, integrity: chain.valid ? 'valid' : 'broken' },
+  });
+});
+
+// Seal one or more posts into the vault
+app.post('/api/vault/seal', (req, res) => {
+  const { posts } = req.body;
+  const list: any[] = Array.isArray(posts) ? posts : [posts];
+  if (list.length === 0 || !list[0]) {
+    res.status(400).json({ error: 'posts array is required' });
+    return;
+  }
+  try {
+    const results = list
+      .filter((p) => p && p.id && typeof p.postContent === 'string')
+      .map((p) => {
+        const { entry, duplicate } = sealPost({
+          id: String(p.id),
+          url: String(p.url || ''),
+          postContent: String(p.postContent),
+          images: Array.isArray(p.images) ? p.images : [],
+          authorName: p.authorName,
+          authorHandle: p.authorHandle,
+          postDate: p.postDate,
+          likesCount: p.likesCount,
+          commentsCount: p.commentsCount,
+          sharesCount: p.sharesCount,
+        });
+        return { postId: p.id, seq: entry.seq, hash: entry.hash, contentHash: entry.contentHash, duplicate };
+      });
+    res.json({ success: true, sealed: results, total: list.length });
+  } catch (err: any) {
+    console.error('Vault seal error:', err);
+    res.status(500).json({ error: err.message || 'Failed to seal posts' });
+  }
+});
+
+// List recent chain entries (newest first)
+app.get('/api/vault/chain', (req, res) => {
+  const limit = Math.min(parseInt(String(req.query.limit || '100'), 10) || 100, 500);
+  const entries = getChain(limit);
+  res.json({ success: true, entries });
+});
+
+// Verify chain integrity + optionally check a specific hash against the chain
+app.get('/api/vault/verify', (req, res) => {
+  const checkHash = (req.query.hash as string) || '';
+  const verification = verifyChain();
+  let match: { found: boolean; postId?: string; seq?: number } = { found: false };
+  if (checkHash) {
+    const entries = getChain(500);
+    const hit = entries.find((e) => e.hash === checkHash || e.contentHash === checkHash);
+    if (hit) match = { found: true, postId: hit.postId, seq: hit.seq };
+  }
+  res.json({ success: true, verification, match });
+});
+
+// Compute the content hash of arbitrary text (utility for clients)
+app.post('/api/vault/hash', (req, res) => {
+  const { text } = req.body;
+  if (typeof text !== 'string') {
+    res.status(400).json({ error: 'text (string) is required' });
+    return;
+  }
+  res.json({ success: true, contentHash: contentHashOf(text) });
+});
+
+// Watch & Scan: re-fetch sealed posts and record EDIT/DELETE events.
+// Body: { posts: [{ id, url, postContent|null }] } — postContent null = unfetchable
+app.post('/api/vault/scan', (req, res) => {
+  const { posts } = req.body;
+  const list: any[] = Array.isArray(posts) ? posts : [];
+  if (list.length === 0) {
+    res.status(400).json({ error: 'posts array is required' });
+    return;
+  }
+  const events: any[] = [];
+  for (const p of list) {
+    if (!p || !p.id) continue;
+    const latest = latestForPost(String(p.id));
+    if (!latest) continue;
+    const latestContent = typeof p.postContent === 'string' ? p.postContent : null;
+    const evt = recordChange(String(p.id), String(p.url || latest.url), latestContent === null ? null : {
+      postContent: latestContent,
+      images: latest.snapshot.images,
+      authorName: latest.snapshot.authorName,
+      authorHandle: latest.snapshot.authorHandle,
+      postDate: latest.snapshot.postDate,
+      likesCount: latest.snapshot.likesCount,
+      commentsCount: latest.snapshot.commentsCount,
+      sharesCount: latest.snapshot.sharesCount,
+    });
+    if (evt) {
+      events.push({
+        postId: evt.postId,
+        type: evt.type,
+        seq: evt.seq,
+        previousHash: latest.contentHash,
+        newHash: evt.contentHash,
+        stillPreserved: evt.type === 'DELETE_DETECTED' ? latest.snapshot.postContent : undefined,
+      });
+    }
+  }
+  res.json({ success: true, checked: list.length, events });
+});
+
+// Ask Your Archive (RAG): local keyword retrieval over the sealed corpus,
+// then BYOK LLM answers with numbered citations to sealed entries.
+app.post('/api/vault/ask', async (req, res) => {
+  const { question, provider = 'gemini', apiKey, baseUrl, modelId } = req.body;
+  if (!question || typeof question !== 'string' || !question.trim()) {
+    res.status(400).json({ error: 'question is required' });
+    return;
+  }
+  const chain = loadChain().filter((e) => e.type === 'SEAL');
+  if (chain.length === 0) {
+    res.json({ success: true, answer: 'Your vault is empty. Seal some posts first, then ask me anything about them.', citations: [] });
+    return;
+  }
+
+  // Build corpus of unique posts (latest seal per postId)
+  const byId = new Map<string, any>();
+  for (const e of chain) byId.set(e.postId, e);
+  const docs = Array.from(byId.values());
+
+  // Local TF-IDF-ish retrieval: score each doc by weighted term overlap.
+  const qTokens = question.toLowerCase().match(/[a-z0-9]{3,}/g) || [];
+  const scored = docs.map((d) => {
+    const text = (d.snapshot.postContent + ' ' + d.snapshot.authorName).toLowerCase();
+    const tokens = text.match(/[a-z0-9]{3,}/g) || [];
+    const tf = new Map<string, number>();
+    for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+    let score = 0;
+    for (const qt of qTokens) {
+      const f = tf.get(qt) || 0;
+      if (f > 0) score += 1 + Math.log(1 + f); // tf with diminishing returns
+    }
+    return { entry: d, score };
+  })
+    .filter((s) => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  if (scored.length === 0) {
+    res.json({
+      success: true,
+      answer: `I searched all ${docs.length} sealed post(s) but found no content related to "Question: ${question}". Try different keywords.`,
+      citations: [],
+    });
+    return;
+  }
+
+  // Context packet with numbered citations
+  const contextData = scored
+    .map((s, i) => `[${i + 1}] Author: ${s.entry.snapshot.authorName || 'Unknown'} (${s.entry.snapshot.postDate || 'no date'})\nSealed content: ${s.entry.snapshot.postContent}`)
+    .join('\n\n');
+
+  try {
+    const isGemini = provider === 'gemini';
+    const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
+    if (!keyToUse) {
+      res.status(400).json({ error: 'API key required. Add one in Settings, or configure GEMINI_API_KEY.' });
+      return;
+    }
+    const result = await generateAiText({
+      provider,
+      apiKey: keyToUse,
+      baseUrl,
+      modelId: (modelId || '').trim() || (isGemini ? 'gemini-3.8-flash' : 'llama-3.3-70b-versatile'),
+      systemInstruction:
+        'You are a forensic archive analyst. Answer ONLY from the sealed archive context provided. Cite sources inline using bracketed numbers like [1], [2] that match the context labels. If the archive does not contain the answer, say so plainly. Be concise.',
+      prompt: `Question: ${question}`,
+      contextData,
+      temperature: 0.2,
+    });
+    res.json({
+      success: true,
+      answer: result.text,
+      citations: scored.map((s) => ({
+        postId: s.entry.postId,
+        seq: s.entry.seq,
+        authorName: s.entry.snapshot.authorName,
+        postDate: s.entry.snapshot.postDate,
+        snippet: s.entry.snapshot.postContent.slice(0, 160),
+        hash: s.entry.contentHash,
+        score: Number(s.score.toFixed(2)),
+      })),
+    });
+  } catch (err: any) {
+    console.error('Vault ask error:', err);
+    res.status(500).json({ error: err.message || 'Failed to answer from archive' });
+  }
+});
+
+
 // Streams tokens via Server-Sent Events. Supports Gemini (native) and any
 // OpenAI-compatible provider, plus image (vision) inputs.
 // ==========================================
@@ -914,7 +1259,7 @@ app.post('/api/chat/stream', async (req, res) => {
   };
 
   const isGemini = provider === 'gemini';
-  const keyToUse = apiKey?.trim() || (isGemini ? process.env.GEMINI_API_KEY : undefined);
+  const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
 
   if (!keyToUse) {
     send({ error: 'No API Key provided. Add your key in the chat settings.' });
@@ -936,6 +1281,7 @@ app.post('/api/chat/stream', async (req, res) => {
     if (!isGemini) {
       // ---- OpenAI-compatible streaming ----
       const root = (baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
+      await assertPublicUrl(root);
       const oaMessages: any[] = [];
       if (system) oaMessages.push({ role: 'system', content: system });
       for (const msg of messages) {
@@ -1049,7 +1395,7 @@ app.post('/api/chat/stream', async (req, res) => {
 app.post('/api/ai/generate', async (req, res) => {
   const { apiKey, modelId, prompt, systemInstruction, temperature, contextData, provider = 'gemini', baseUrl, images } = req.body;
   const isGemini = provider === 'gemini';
-  const keyToUse = apiKey?.trim() || (isGemini ? process.env.GEMINI_API_KEY : undefined);
+  const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
   const targetModel = modelId?.trim() || (isGemini ? 'gemini-3.8-flash' : '');
 
   if (!keyToUse) {
@@ -1108,6 +1454,7 @@ async function generateSpeechAudio(opts: {
 
   if (provider !== 'gemini') {
     const root = (baseUrl || 'https://api.openai.com/v1').trim().replace(/\/+$/, '');
+    await assertPublicUrl(root);
     const model = opts.modelId?.trim() || 'tts-1';
 
     // Map common Gemini voice names onto OpenAI-compatible voices when possible.
@@ -1184,7 +1531,7 @@ async function generateSpeechAudio(opts: {
 app.post('/api/ai/tts', async (req, res) => {
   const { text, voice = 'Puck', apiKey, modelId, provider = 'gemini', baseUrl } = req.body;
   const isGemini = provider === 'gemini';
-  const keyToUse = apiKey?.trim() || (isGemini ? process.env.GEMINI_API_KEY : undefined);
+  const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
 
   if (!keyToUse) {
     res.status(400).json({
@@ -1246,7 +1593,7 @@ app.post('/api/video/add-voiceover', async (req, res) => {
   }
 
   const isGemini = provider === 'gemini';
-  const keyToUse = apiKey?.trim() || (isGemini ? process.env.GEMINI_API_KEY : undefined);
+  const keyToUse = cleanKey(apiKey) || (isGemini ? cleanKey(process.env.GEMINI_API_KEY) : undefined);
   if (!keyToUse) {
     res.status(400).json({ error: 'An API key is required to synthesize talking voiceover.' });
     return;
@@ -1442,6 +1789,11 @@ app.get('/api/video/download-clip', async (req, res) => {
     const localRaw = path.join(tempClipDir, 'raw.mp4');
     const localFinal = path.join(tempClipDir, `facebook_clip_${clipId}.mp4`);
 
+    // SSRF guard: relative (/samples, /uploads) URLs are read from disk locally,
+    // but absolute remote URLs must resolve to a public address.
+    if (/^https?:/i.test(videoUrl)) await assertPublicUrl(videoUrl);
+    if (audioUrl && /^https?:/i.test(audioUrl)) await assertPublicUrl(audioUrl);
+
     // Pass the separate audio track so a video-only DASH stream gets real sound
     await saveVideoLocally(videoUrl, localRaw, audioUrl);
 
@@ -1491,6 +1843,7 @@ app.get('/api/proxy-video', async (req, res) => {
   }
 
   try {
+    await assertPublicUrl(targetUrl);
     const headHeaders: Record<string, string> = {
       'User-Agent':
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',

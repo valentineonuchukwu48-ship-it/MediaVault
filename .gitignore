@@ -3,6 +3,21 @@ build/
 dist/
 coverage/
 .DS_Store
+Thumbs.db
 *.log
+server.log
+npm-install.log
+
+# Local secrets — never commit. Keep the example only.
 .env*
 !.env.example
+
+# Runtime / generated data
+vault/
+public/uploads/
+public/audio/
+
+# Platform-specific binary. Deploys install the correct yt-dlp for their OS
+# (see Dockerfile); do not commit the Windows build.
+yt-dlp.exe
+yt-dlp

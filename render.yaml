@@ -1,0 +1,19 @@
+# Render Blueprint — one-click deploy of the full app (Docker).
+# Free instance works; note the container filesystem is ephemeral on the free
+# tier, so the Evidence Vault resets on redeploy/restart. Attach a persistent
+# disk at /app/vault on a paid plan to keep sealed archives across restarts.
+services:
+  - type: web
+    name: facebookgrabcontents
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Optional: set a server-wide Gemini key. Leave blank to use in-app BYOK
+      # (each visitor supplies their own key in the AI Studio / Settings).
+      - key: GEMINI_API_KEY
+        sync: false
