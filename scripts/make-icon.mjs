@@ -16,6 +16,14 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = path.join(root, 'build-resources');
 const outFile = path.join(outDir, 'icon.png');
 
+// The rendered icon is committed to the repo, so only regenerate it when it is
+// missing. Keeps CI deterministic and removes the ffmpeg dependency on
+// runners that don't ship it.
+if (fs.existsSync(outFile)) {
+  console.log('[make-icon] build-resources/icon.png already exists; skipping');
+  process.exit(0);
+}
+
 const FONT_CANDIDATES = [
   'C:/Windows/Fonts/seguisb.ttf',
   'C:/Windows/Fonts/arialbd.ttf',
