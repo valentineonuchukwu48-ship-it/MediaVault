@@ -67,3 +67,22 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Skip code signing on CI (unsigned builds). Configure CSC_* secrets to sign.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+  # electron-builder uploads the installers but leaves the release as a draft
+  # with an empty description. This job fills in the title/notes and publishes.
+  finalize:
+    name: Publish release notes
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Publish the release with notes
+        run: node scripts/publish-release.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
