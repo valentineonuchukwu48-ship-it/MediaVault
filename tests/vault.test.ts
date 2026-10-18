@@ -14,7 +14,14 @@ const VAULT_FILE = path.resolve('.test-data', 'vault', 'chain.ndjson');
 
 describe('EvidenceVault', () => {
   beforeEach(() => {
-    fs.rmSync(path.resolve('.test-data'), { recursive: true, force: true });
+    // Retry the teardown: on fast CI runners (and some filesystems) a race
+    // can surface as ENOTEMPTY on the directory itself, which then fails the
+    // whole run. maxRetries + a hard catch keeps this suite deterministic.
+    try {
+      fs.rmSync(path.resolve('.test-data'), { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch {
+      /* .test-data is a throwaway directory — carry on regardless */
+    }
   });
 
   it('starts empty and valid', () => {
