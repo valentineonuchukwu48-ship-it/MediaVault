@@ -522,19 +522,34 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
       }
 
       // 4. Post Content Paragraphs
+      // Facebook HTML entities — full decode including named &gt;/&lt;/&nbsp;
+      // and every numeric form (&#62; / &#x3e;), keeping math (>, −, ², …)
+      // intact for the evidence PDF.
+      const decodeEmbedHtml = (s: string): string =>
+        s
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<span class="_6qdm"[^>]*>(.*?)<\/span>/gi, '$1')
+          .replace(/<[^>]+>/g, '')
+          .replace(/&quot;/g, '"')
+          .replace(/&#039;|&#x27;/g, "'")
+          .replace(/&gt;/g, '>')
+          .replace(/&lt;/g, '<')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&#123;/g, '{')
+          .replace(/&#125;/g, '}')
+          .replace(/&amp;/g, '&')
+          .replace(/&#(\d+);/g, (_m, n) => {
+            const cp = Number(n);
+            return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : '';
+          })
+          .replace(/&#x([0-9a-f]+);/gi, (_m, h) => {
+            const cp = parseInt(h, 16);
+            return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : '';
+          })
+          .trim();
+
       const pMatches = Array.from(html.matchAll(/<p[^>]*>(.*?)<\/p>/gis))
-        .map((m) =>
-          m[1]
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<span class="_6qdm"[^>]*>(.*?)<\/span>/gi, '$1')
-            .replace(/<[^>]+>/g, '')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;/g, "'")
-            .replace(/&amp;/g, '&')
-            .replace(/&#123;/g, '{')
-            .replace(/&#125;/g, '}')
-            .trim()
-        )
+        .map((m) => decodeEmbedHtml(m[1]))
         .filter(Boolean);
 
       let fullContent = pMatches.join('\n\n');
@@ -542,13 +557,7 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
       if (!fullContent || fullContent.length < 10) {
         const userContentMatch = html.match(/<div class=["'][^"']*_5pbx[^"']*["'][^>]*>(.*?)<\/div>/is);
         if (userContentMatch && userContentMatch[1]) {
-          fullContent = userContentMatch[1]
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<[^>]+>/g, '')
-            .replace(/&quot;/g, '"')
-            .replace(/&#039;/g, "'")
-            .replace(/&amp;/g, '&')
-            .trim();
+          fullContent = decodeEmbedHtml(userContentMatch[1]);
         }
       }
 

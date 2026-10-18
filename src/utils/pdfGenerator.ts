@@ -52,11 +52,27 @@ export function sanitizeTextForPdf(input: string): string {
   // Invisible formatting: variation selectors, zero-width joiners, keycaps.
   s = s.replace(/[\uFE00-\uFE0F\u200B-\u200D\u2060\uFEFF\u20E3]/g, '');
   for (const [re, tag] of EMOJI_TAGS) s = s.replace(re, ` ${tag} `);
+  // Common maths symbols the WinAnsi fonts can't draw — readable ASCII forms.
+  const SYMBOLS: Array<[string, string]> = [
+    ['\u2212', '-'], // minus sign
+    ['\u2248', '~'], // almost equal
+    ['\u2264', '<='],
+    ['\u2265', '>='],
+    ['\u2260', '!='],
+    ['\u221A', 'sqrt'],
+    ['\u2192', '->'],
+    ['\u2190', '<-'],
+    ['\u2194', '<->'],
+    ['\u21D2', '=>'],
+    ['\u2044', '/'],
+    ['\u22EF', '...'],
+    ['\u2500\u2501', '-'],
+  ];
+  for (const [sym, rep] of SYMBOLS) s = s.split(sym).join(rep);
   let out = '';
   for (const ch of s) {
     const cp = ch.codePointAt(0) as number;
     if (cp < 0x100 || WINANSI_EXTRA.has(cp)) out += ch;
-    else if (cp === 0x2500 || cp === 0x2501) out += '-';
     else if (cp >= 0xd800 && cp <= 0xdfff) continue; // lone surrogates
     else if (cp > 0xffff) out += ' [emoji]';
     else if (cp >= 0x2000 && cp < 0x2100) out += ch === '\u2028' || ch === '\u2029' ? ' ' : ch;

@@ -156,8 +156,12 @@ async function refetchViaPlugin(url: string): Promise<{ visible: boolean; conten
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<[^>]+>/g, '')
       .replace(/&quot;/g, '"')
-      .replace(/&#039;/g, "'")
+      .replace(/&#039;|&#x27;/g, "'")
+      .replace(/&gt;/g, '>')
+      .replace(/&lt;/g, '<')
+      .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
+      .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(Number(n)))
       .trim();
 
   const paras = Array.from(html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi))
