@@ -192,7 +192,7 @@ export async function generateCombinedPdf(
 
     pdf.setFontSize(22);
     pdf.setTextColor(15, 23, 42);
-    pdf.text(settings.archiveTitle || 'Facebook Post Archive Dossier', 15, 36);
+    pdf.text(sanitizeTextForPdf(settings.archiveTitle || 'Facebook Post Archive Dossier'), 15, 36);
 
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(10);
@@ -244,9 +244,11 @@ export async function generateCombinedPdf(
 
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(100, 116, 139);
-      pdf.text(`(${p.postDate})`, 80, tocY);
+      pdf.text(`(${sanitizeTextForPdf(p.postDate)})`, 80, tocY);
 
-      const snippet = p.postContent ? p.postContent.replace(/\n/g, ' ').slice(0, 50) + '...' : 'Photo post';
+      const snippet = p.postContent
+        ? sanitizeTextForPdf(p.postContent.replace(/\n/g, ' ')).slice(0, 50) + '...'
+        : 'Photo post';
       pdf.text(snippet, 24, tocY + 5);
 
       pdf.setDrawColor(241, 245, 249);
@@ -326,7 +328,7 @@ export async function generateCombinedPdf(
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
     pdf.setTextColor(100, 116, 139);
-    pdf.text(`${post.postDate} · Public`, marginX + 18, currentY + 11);
+    pdf.text(`${sanitizeTextForPdf(post.postDate)} · Public`, marginX + 18, currentY + 11);
 
     currentY += 20;
 
@@ -405,14 +407,14 @@ export async function generateCombinedPdf(
           pdf.setFontSize(8);
           pdf.setTextColor(71, 85, 105);
           pdf.text(
-            `${post.authorName.toUpperCase()} · WORKSHEET ATTACHMENT ${imgIdx + 1} OF ${post.images.length}`,
+            sanitizeTextForPdf(post.authorName).toUpperCase() + ` · WORKSHEET ATTACHMENT ${imgIdx + 1} OF ${post.images.length}`,
             marginX + 4,
             20.5
           );
 
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(148, 163, 184);
-          pdf.text(`Post ID: ${post.id}`, pageWidth - marginX - 35, 20.5);
+          pdf.text(sanitizeTextForPdf(`Post ID: ${post.id}`), pageWidth - marginX - 35, 20.5);
 
           // Maximize image size on full page
           const fullAvailW = contentWidth;
