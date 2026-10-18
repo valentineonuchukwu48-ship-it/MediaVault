@@ -8,6 +8,63 @@ export interface GenerationProgress {
   message: string;
 }
 
+/**
+ * Make post text safe for jsPDF's standard fonts (WinAnsi / Latin-1 only).
+ * Without this, every emoji, maths symbol and box character in a Facebook
+ * post turns into mojibake (Ø=Þ%) inside the PDF. Strategy:
+ *   1. NFKD-normalise — folds compatibility symbols to plain text
+ *      (𝒂 → a, ① → 1, full-width and stylised variants alike).
+ *   2. Strip invisible formatting characters (variation selectors, ZWJ…).
+ *   3. Map decorational emojis to short readable tags — an evidence PDF must
+ *      show something meaningful where an emoji was, not mojibake.
+ *   4. Replace characters the standard fonts cannot draw.
+ */
+const EMOJI_TAGS: Array<[RegExp, string]> = [
+  [/[\u2764\u{1F49A}-\u{1F49F}]/gu, '[heart]'],
+  [/[\u{1F602}\u{1F923}]/gu, '[lol]'],
+  [/[\u{1F60A}\u{1F642}]/gu, '[smile]'],
+  [/[\u{1F62D}\u{1F611}]/gu, '[react]'],
+  [/[\u{1F44C}]/gu, '[approval]'],
+  [/[\u{1F44E}]/gu, '[disapproval]'],
+  [/[\u{1F64F}]/gu, '[pray]'],
+  [/[\u{1F525}]/gu, '[fire]'],
+  [/[\u{1F339}]/gu, '[rose]'],
+  [/[\u{1F7E2}]/gu, '[green dot]'],
+  [/[\u{1F534}]/gu, '[red dot]'],
+  [/[\u26BD\u26C1\u26C2\u26C3\u{1F3C0}\u{1F3D0}\u{1F3C8}\u{1F3C9}]/gu, '[ball]'],
+  [/[\u{1F44F}]/gu, '[clap]'],
+  [/[\u{1F4AA}]/gu, '[strong]'],
+  [/[\u{1F389}\u{1F38A}]/gu, '[celebrate]'],
+  [/[\u{1F4B0}\u{1F4B8}]/gu, '[money]'],
+  [/[\u23F0-\u23F3\u{1F550}-\u{1F55B}]/gu, '[clock]'],
+  [/[\u{1F4CD}]/gu, '[location]'],
+  [/[\u{1F4C5}\u{1F4C6}]/gu, '[calendar]'],
+];
+
+const WINANSI_EXTRA = new Set([
+  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160,
+  0x2039, 0x0152, 0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014,
+  0x02dc, 0x2122, 0x0161, 0x203a, 0x0153, 0x017e, 0x0178,
+]);
+
+export function sanitizeTextForPdf(input: string): string {
+  let s = (input || '').normalize('NFKD');
+  // Invisible formatting: variation selectors, zero-width joiners, keycaps.
+  s = s.replace(/[\uFE00-\uFE0F\u200B-\u200D\u2060\uFEFF\u20E3]/g, '');
+  for (const [re, tag] of EMOJI_TAGS) s = s.replace(re, ` ${tag} `);
+  let out = '';
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) as number;
+    if (cp < 0x100 || WINANSI_EXTRA.has(cp)) out += ch;
+    else if (cp === 0x2500 || cp === 0x2501) out += '-';
+    else if (cp >= 0xd800 && cp <= 0xdfff) continue; // lone surrogates
+    else if (cp > 0xffff) out += ' [emoji]';
+    else if (cp >= 0x2000 && cp < 0x2100) out += ch === '\u2028' || ch === '\u2029' ? ' ' : ch;
+    else out += '?';
+  }
+  return out.replace(/ {2,}/g, ' ').trim();
+}
+
 // Convert any image URL or path into a base64 Data URL for jsPDF
 async function getBase64Image(url: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
   if (!url) return null;
@@ -167,7 +224,7 @@ export async function generateCombinedPdf(
 
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(15, 23, 42);
-      pdf.text(p.authorName, 24, tocY);
+      pdf.text(sanitizeTextForPdf(p.authorName), 24, tocY);
 
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(100, 116, 139);
@@ -238,15 +295,15 @@ export async function generateCombinedPdf(
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(12);
     pdf.setTextColor(15, 23, 42);
-    pdf.text(post.authorName, marginX + 18, currentY + 6);
+    pdf.text(sanitizeTextForPdf(post.authorName), marginX + 18, currentY + 6);
 
     if (post.isVerified) {
-      const nameWidth = pdf.getTextWidth(post.authorName);
+      const nameWidth = pdf.getTextWidth(sanitizeTextForPdf(post.authorName));
       pdf.setFillColor(24, 119, 242);
       pdf.circle(marginX + 21 + nameWidth, currentY + 4.5, 2.2, 'F');
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(6);
-      pdf.text('✓', marginX + 20.2 + nameWidth, currentY + 5.5);
+      pdf.text('v', marginX + 20.2 + nameWidth, currentY + 5.5);
     }
 
     // Header: Timestamp & Privacy icon
@@ -263,7 +320,7 @@ export async function generateCombinedPdf(
       pdf.setFontSize(9.5);
       pdf.setTextColor(30, 41, 59);
 
-      const splitText: string[] = pdf.splitTextToSize(post.postContent, contentWidth - 4);
+      const splitText: string[] = pdf.splitTextToSize(sanitizeTextForPdf(post.postContent), contentWidth - 4);
       for (const line of splitText) {
         if (currentY > pageHeight - 38) {
           // Add continuation page for long text (e.g. detailed math revision steps)
@@ -273,7 +330,7 @@ export async function generateCombinedPdf(
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(8.5);
           pdf.setTextColor(100, 116, 139);
-          pdf.text(`${post.authorName} · Continuation`, marginX + 2, currentY);
+          pdf.text(`${sanitizeTextForPdf(post.authorName)} · Continuation`, marginX + 2, currentY);
           currentY += 7;
 
           pdf.setFont('helvetica', 'normal');
@@ -380,7 +437,7 @@ export async function generateCombinedPdf(
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8.5);
       pdf.setTextColor(71, 85, 105);
-      const engagementText = `👍 ❤️ ${post.likesCount || 342} likes    💬 ${post.commentsCount || 47} comments    ↗ ${post.sharesCount || 19} shares`;
+      const engagementText = `Likes: ${post.likesCount || 0}   Comments: ${post.commentsCount || 0}   Shares: ${post.sharesCount || 0}`;
       pdf.text(engagementText, marginX + 2, currentY);
 
       currentY += 8;
@@ -397,12 +454,12 @@ export async function generateCombinedPdf(
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(8);
         pdf.setTextColor(15, 23, 42);
-        pdf.text(c.author, marginX + 5, currentY + 4.5);
+        pdf.text(sanitizeTextForPdf(c.author), marginX + 5, currentY + 4.5);
 
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(8);
         pdf.setTextColor(51, 65, 85);
-        pdf.text(c.text.slice(0, 75), marginX + 5, currentY + 8.5);
+        pdf.text(sanitizeTextForPdf(c.text).slice(0, 75), marginX + 5, currentY + 8.5);
 
         currentY += 13;
       }

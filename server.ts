@@ -1282,6 +1282,31 @@ app.get('/api/radar/tasks', (_req, res) => {
   res.json({ success: true, ...listRadarTasks() });
 });
 
+// One task in full: watch state + the SEALED original snapshot (so the radar
+// panel can show the complete archived post, not just a status line).
+app.get('/api/radar/tasks/:postId', (req, res) => {
+  const { tasks } = listRadarTasks();
+  const task = tasks.find((t) => t.postId === String(req.params.postId));
+  if (!task) {
+    res.status(404).json({ error: 'No watch task for that postId' });
+    return;
+  }
+  const latest = latestForPost(task.postId);
+  res.json({
+    success: true,
+    task,
+    sealedPost: latest
+      ? {
+          content: latest.snapshot.postContent,
+          author: latest.snapshot.authorName,
+          images: latest.snapshot.images,
+          sealedAt: latest.timestamp,
+          type: latest.type,
+        }
+      : null,
+  });
+});
+
 // Watch a post. The URL is accepted in any form the app understands.
 app.post('/api/radar/tasks', async (req, res) => {
   const { url, postId } = req.body || {};

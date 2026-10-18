@@ -127,6 +127,28 @@ export const DeletionRadar: React.FC = () => {
     setBusy(false);
   };
 
+  // Full sealed post — opened on click, straight from the vault.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<{ taskId: string; sealedPost: { content: string; author?: string; images?: string[]; sealedAt: string } | null } | null>(null);
+  const [detailBusy, setDetailBusy] = useState('');
+
+  const toggleDetail = async (postId: string) => {
+    if (expandedId === postId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(postId);
+    setDetailBusy(postId);
+    try {
+      const res = await fetch(`/api/radar/tasks/${encodeURIComponent(postId)}`);
+      const data = await res.json().catch(() => ({}));
+      setDetail({ taskId: postId, sealedPost: data.success ? data.sealedPost ?? null : null });
+    } catch {
+      setDetail({ taskId: postId, sealedPost: null });
+    }
+    setDetailBusy('');
+  };
+
   // The history endpoint only ever stores real alerts — HELLO frames are
   // transient stream connectors and never persisted server-side.
   const alertCount = events.length;
@@ -193,23 +215,30 @@ export const DeletionRadar: React.FC = () => {
 
             {/* Watches */}
             {tasks.length > 0 && (
-              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                 {tasks.map((t) => {
                   const style = STATUS_STYLE[t.status];
+                  const expanded = expandedId === t.postId;
                   return (
                     <div key={t.postId} className="rounded-xl border border-slate-700/60 bg-slate-800/50 p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9.5px] font-bold tracking-wide ${style.chip}`}>
-                            {t.status === 'edited' ? <Edit3 className="w-3 h-3 mr-1" /> : t.status === 'deleted' ? <Trash className="w-3 h-3 mr-1" /> : t.status === 'unknown' ? <HelpCircle className="w-3 h-3 mr-1" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
-                            {style.label}
-                          </span>
-                          <p className="mt-1 text-[11px] text-slate-400 font-mono truncate" title={t.url}>
-                            {t.url.replace(/^https?:\/\/(www\.)?/, '')}
-                          </p>
-                          <p className="text-[10px] text-slate-600">
-                            last checked: {t.lastChecked ? new Date(t.lastChecked).toLocaleTimeString() : 'never'}
-                          </p>
+                          <button
+                            onClick={() => toggleDetail(t.postId)}
+                            className="w-full text-left group"
+                            title={expanded ? 'Collapse' : 'Show the full sealed post'}
+                          >
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9.5px] font-bold tracking-wide ${style.chip} group-hover:brightness-110 transition-all`}>
+                              {t.status === 'edited' ? <Edit3 className="w-3 h-3 mr-1" /> : t.status === 'deleted' ? <Trash className="w-3 h-3 mr-1" /> : t.status === 'unknown' ? <HelpCircle className="w-3 h-3 mr-1" /> : <ShieldCheck className="w-3 h-3 mr-1" />}
+                              {style.label}
+                            </span>
+                            <p className="mt-1 text-[11px] text-slate-400 font-mono truncate" title={t.url}>
+                              {t.url.replace(/^https?:\/\/(www\.)?/, '')}
+                            </p>
+                            <p className="text-[10px] text-slate-600">
+                              last checked: {t.lastChecked ? new Date(t.lastChecked).toLocaleTimeString() : 'never'} · <span className="text-emerald-600 group-hover:text-emerald-400">{expanded ? 'hide post' : 'show full post'}</span>
+                            </p>
+                          </button>
                         </div>
                         <button
                           onClick={() => unwatch(t.postId)}
@@ -219,6 +248,31 @@ export const DeletionRadar: React.FC = () => {
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
+
+                      {/* Full sealed post — click to reveal */}
+                      {expanded && (
+                        <div className="mt-2 border-t border-slate-700/50 pt-2">
+                          {detailBusy === t.postId ? (
+                            <p className="text-[10.5px] text-slate-500">Opening the sealed original…</p>
+                          ) : detail?.taskId === t.postId ? (
+                            detail.sealedPost ? (
+                              <>
+                                <p className="text-[10px] text-slate-500 mb-1.5">
+                                  <span className="text-emerald-300 font-semibold">Sealed original</span>
+                                  {' '}· {detail.sealedPost.author || 'unknown author'} · archived {new Date(detail.sealedPost.sealedAt).toLocaleString()}
+                                </p>
+                                <div className="max-h-[220px] overflow-y-auto rounded-lg bg-slate-900/60 border border-slate-800 p-2.5">
+                                  <p className="text-[11px] leading-relaxed text-slate-200 whitespace-pre-wrap break-words">{detail.sealedPost.content}</p>
+                                </div>
+                              </>
+                            ) : (
+                              <p className="text-[10.5px] text-slate-500">
+                                Nothing sealed in the vault for this link yet — seal it from the main screen and the full original will appear here.
+                              </p>
+                            )
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

@@ -119,6 +119,55 @@ async function refetchPostText(
 
   if (looksLoginWalled) return { visible: false, content: '' };
   const content = description || title;
+  if (content) return { visible: true, content };
+  return refetchViaPlugin(url);
+}
+
+/**
+ * Fallback channel — the public embed-plugin page. Facebook serves it to
+ * logged-out visitors even when permalinks are login-walled, and it carries
+ * the post text IN FULL (paragraph structure preserved), so the radar can
+ * compare complete texts the way the vault sealed them.
+ */
+async function refetchViaPlugin(url: string): Promise<{ visible: boolean; content: string }> {
+  const pluginUrl = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(url)}&show_text=true&width=500`;
+  let html = '';
+  try {
+    const res = await fetch(pluginUrl, {
+      headers: {
+        'User-Agent': CRAWLER_UA,
+        Referer: 'https://www.facebook.com/',
+        Accept: 'text/html,*/*',
+      },
+      redirect: 'follow',
+      signal: AbortSignal.timeout(9000),
+    });
+    if (res.ok) html = await res.text();
+  } catch {
+    return { visible: false, content: '' };
+  }
+  if (!html) return { visible: false, content: '' };
+  if (/log (in|into)|sign up|content you have requested/i.test(html.slice(0, 4000))) {
+    return { visible: false, content: '' };
+  }
+
+  const decode = (s: string): string =>
+    s
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&quot;/g, '"')
+      .replace(/&#039;/g, "'")
+      .replace(/&amp;/g, '&')
+      .trim();
+
+  const paras = Array.from(html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi))
+    .map((m) => decode(m[1]))
+    .filter(Boolean);
+  let content = paras.join('\n\n');
+  if (!content) {
+    const div = html.match(/<div[^>]*class=["'][^"']*_5pbx[^"']*["'][^>]*>([\s\S]*?)<\/div>/i);
+    if (div) content = decode(div[1]);
+  }
   return content ? { visible: true, content } : { visible: false, content: '' };
 }
 
