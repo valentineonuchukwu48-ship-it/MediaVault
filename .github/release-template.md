@@ -22,6 +22,14 @@ Created by **Valentine Onuchukwu** — ProsperChild Technology, Nigeria.
 - Unsigned build: right-click the app → **Open** the first time.
 - Apple Silicon (M1/M2/M3/M4) only.
 
+## 🔐 NEW — Zero-trust evidence verifier
+
+Desktop → **Evidence vault** → **Download zero-trust verifier**. It produces a single portable
+`.html` file containing your whole sealed archive plus an independent verification engine —
+anyone can open it in any browser (no install, no account, no network) and see every hash
+recomputed and the chain VERIFIED or TAMPERING DETECTED, byte-by-byte. Disclose evidence with
+math, not promises.
+
 ## 📱 Mobile app (Android & iPhone) — NEW
 
 Phone Connect puts the **same full app on your phone** over your Wi-Fi — the PC keeps doing the heavy lifting (yt-dlp, ffmpeg, vault, AI), so nothing is missing on mobile:

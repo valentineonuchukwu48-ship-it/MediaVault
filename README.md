@@ -49,6 +49,16 @@ Use **Desktop → Data folder / Downloads** to open them, or **File** in the men
 
 ---
 
+---
+
+## 🛡️ Zero-trust evidence verifier
+
+**Evidence vault → Download zero-trust verifier** produces one portable `.html` file that embeds
+your whole sealed chain plus an independent re-verification engine (WebCrypto SHA-256 in the
+recipient's browser). Share it with a lawyer, court, or journalist — they open the file and see
+`VERIFIED ✓` with every hash recomputed live, or `TAMPERING DETECTED` with the first broken entry.
+No installation, no account, no trust in the app itself. **← NEW in v1.2.0**
+
 ## 📱 Mobile app (Android & iPhone)
 
 Phone Connect puts the same full experience on your phone over your Wi-Fi. The PC keeps doing the heavy lifting (yt-dlp, ffmpeg, vault, AI), so nothing is missing on mobile:

@@ -36,6 +36,7 @@ import {
   DIST_DIR,
 } from './src/server/paths';
 import crypto from 'crypto';
+import { buildVerifierPage } from './src/server/verifierBundle';
 
 dotenv.config();
 
@@ -1164,6 +1165,24 @@ app.post('/api/vault/hash', (req, res) => {
     return;
   }
   res.json({ success: true, contentHash: contentHashOf(text) });
+});
+
+// Zero-trust verifier bundle: a single self-contained HTML file that embeds
+// the whole sealed chain and re-verifies every hash with WebCrypto in the
+// recipient's browser — no install, no account, no trust in this app.
+app.get('/api/vault/verifier', (_req, res) => {
+  try {
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="facebookgrabcontents-verifier-${stamp}.html"`
+    );
+    res.send(buildVerifierPage());
+  } catch (err: any) {
+    console.error('Verifier bundle error:', err);
+    res.status(500).json({ error: err.message || 'Failed to build verifier bundle' });
+  }
 });
 
 // Watch & Scan: re-fetch sealed posts and record EDIT/DELETE events.

@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------
 
     @SuppressLint("SetJavaScriptEnabled")
-    private void showEngine(String url) {
+    private void showEngine(String engineUrl) {
         webView = new WebView(this);
         WebSettings ws = webView.getSettings();
         ws.setJavaScriptEnabled(true);
@@ -242,7 +242,7 @@ public class MainActivity extends Activity {
         });
 
         setContentView(webView);
-        webView.loadUrl(url);
+        webView.loadUrl(engineUrl);
     }
 
     private boolean sameOrigin(String a, String b) {

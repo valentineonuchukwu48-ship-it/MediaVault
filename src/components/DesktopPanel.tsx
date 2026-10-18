@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2, Smartphone, Wifi } from 'lucide-react';
+import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2, Smartphone, Wifi, ShieldCheck } from 'lucide-react';
 import {
   getDesktop,
   isDesktop,
@@ -31,6 +31,7 @@ export const DesktopPanel: React.FC = () => {
   const [qrUrl, setQrUrl] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState('');
+  const [vaultInfo, setVaultInfo] = useState<{ entries: number; integrity: string } | null>(null);
 
   // Ask the engine what LAN URL it currently serves (empty while disabled).
   const refreshLanInfo = async () => {
@@ -60,6 +61,10 @@ export const DesktopPanel: React.FC = () => {
       })
       .catch(() => {});
     refreshLanInfo();
+    fetch('/api/health')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((info) => setVaultInfo(info?.vault || null))
+      .catch(() => {});
     const off = bridge.onUpdate((status) => setUpdate(status));
     return off;
   }, []);
@@ -103,6 +108,27 @@ export const DesktopPanel: React.FC = () => {
     await bridge.clearCookies();
     setCookiesFile('');
     setSettings((s) => ({ ...s, cookiesFile: '' }));
+  };
+
+  // Full corpus + independent re-verification code in one portable HTML file.
+  const downloadVerifier = async () => {
+    try {
+      const res = await fetch('/api/vault/verifier');
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `facebookgrabcontents-verifier-${stamp}.html`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+      }, 4000);
+    } catch {
+      /* engine unreachable — nothing sensible to do inside the panel */
+    }
   };
 
   const cookieFileName = cookiesFile ? cookiesFile.split(/[\\/]/).pop() : '';
@@ -236,6 +262,30 @@ export const DesktopPanel: React.FC = () => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Evidence Vault — integrity + zero-trust verifier */}
+            <div className="space-y-2 border-t border-slate-800/80 pt-3">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <ShieldCheck className="w-3.5 h-3.5" /> Evidence vault
+              </p>
+              {vaultInfo && (
+                <p className={`flex items-center gap-1.5 text-[11px] ${vaultInfo.integrity === 'valid' ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  {vaultInfo.entries} sealed entr{vaultInfo.entries === 1 ? 'y' : 'ies'} · chain {vaultInfo.integrity}
+                </p>
+              )}
+              <button
+                onClick={downloadVerifier}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-medium transition-colors border border-slate-700/60"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-300" /> Download zero-trust verifier
+              </button>
+              <p className="text-[10.5px] leading-relaxed text-slate-500">
+                One portable <span className="text-slate-400">.html</span> file: anyone can open it
+                (lawyer, court, journalist) and re-verify every sealed archive themselves — in their
+                browser, with no install, no account, no trust in this app.
+              </p>
             </div>
 
             {/* Phone Connect — installable mobile app over Wi-Fi */}
