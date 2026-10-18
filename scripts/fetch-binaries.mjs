@@ -106,15 +106,24 @@ async function fetchFfmpegWindows() {
 async function fetchFfmpegLinux() {
   if (!FORCE && (await has('ffmpeg')) && (await has('ffprobe'))) return log('ffmpeg/ffprobe already present');
   const arch = ARCH === 'arm64' ? 'arm64' : 'amd64';
+  // Mirror 1 (primary) is convenient but historically flaky under load —
+  // retry it, then fail over to the GitHub-hosted BtbN static build,
+  // which extracts to the "ffmpeg-…/bin/ffmpeg" layout the same way.
   const url = `https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-${arch}-static.tar.xz`;
+  const fallbackUrl = `https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-linux64-gpl.tar.xz`;
   const tarFile = path.join(os.tmpdir(), 'ffmpeg-linux.tar.xz');
-  await download(url, tarFile);
+  try {
+    await download(url, tarFile);
+  } catch (err) {
+    log(`primary mirror failed (${err.message}) — falling back to GitHub mirror`);
+    await download(fallbackUrl, tarFile);
+  }
   const outDir = path.join(os.tmpdir(), 'ffmpeg-linux');
   fs.rmSync(outDir, { recursive: true, force: true });
   extract(tarFile, outDir);
   for (const tool of ['ffmpeg', 'ffprobe']) {
     const found = findFile(outDir, tool);
-    if (!found) throw new Error(`${tool} not found in ${url}`);
+    if (!found) throw new Error(`${tool} not found in ${url} (or fallback)`);
     install(found, tool);
   }
 }
