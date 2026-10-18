@@ -2,7 +2,7 @@
 
 **Archive Facebook posts as evidence-grade PDFs, download/merge Facebook videos with sound, prove nothing got tampered with — and watch the posts you care about. Runs entirely on your own machine.**
 
-- **Version of this document:** matches app `1.3.0`
+- **Version of this document:** matches app `1.4.0`
 - **Author:** Valentine Onuchukwu — ProsperChild Technology, Nigeria
 - **License:** MIT — free forever
 - **Support the project:** https://flutterwave.com/donate/fysqhtbnfznn
@@ -45,6 +45,8 @@ FacebookGrabContents is a **local-first archival workbench** for Facebook conten
 | 🗣️ **AI voiceover / TTS** | Generate speech and burn it onto any clip, overlay or replace. |
 | 🤖 **AI studio (BYOK)** | Any Gemini key or OpenAI-compatible provider (OpenRouter, Groq, DeepSeek, NVIDIA NIM…) writes scripts, titles, analyses, and answers. |
 | 🔐 **Evidence Vault** | Every sealed post lands in an append-only SHA-256 hash chain; edits and deletions become cryptographically evident events. |
+| ⏳ **Court-grade time proof** | Each sealed entry can be anchored into the free public OpenTimestamps/Bitcoin calendar — anyone can prove your archive existed on a real date with official tools, no account, no cost. **← NEW in v1.4.0** |
+| 📊 **Excel/CSV export** | The whole archive as one auditable spreadsheet (dates, URLs, engagement numbers, hashes, anchor status) — Excel-safe against formula injection. **← NEW in v1.4.0** |
 | 🛡️ **Zero-Trust Verifier** | Export one `.html` file that lets *anyone* re-verify your archive in their browser — with no install, no account, no trust in this app. |
 | 🔔 **Deletion Radar** | Watch posts you already archived; the engine re-checks them on a schedule and alerts **every open app window (PC and phone)** the moment the public copy changes or disappears. |
 | 📱 **Phone Connect** | The whole app installs on your Android/iPhone over Wi-Fi (PWA) — plus a native Android companion APK from GitHub Releases. |
@@ -108,6 +110,16 @@ Why a separate engine? A heavy 200 MB video merge can never freeze or crash the 
 ### Watching from your phone
 
 See [Phone Connect](#11-feature-phone-connect--mobile-app). Phones pair through a one-time 6-digit code (see [Pairing security](#12-feature-pairing-security-lan-protection)).
+
+### Upgrading (no GitHub visit needed)
+
+Already installed an older version? The app **updates itself**:
+
+1. It quietly checks GitHub releases on every startup (and whenever you press **Check now** under **Desktop → Updates**).
+2. A new version downloads in the background; the app asks *"Update is ready — restart now?"*.
+3. One click installs. All data (vault contents, watch list, time-stamp receipts, cookies) sits outside the app itself, so nothing is lost.
+
+Portable (non-installer) builds don't self-update — download the new portable from [Releases](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/releases) instead.
 
 ---
 
@@ -209,6 +221,17 @@ Each entry:
 - **Watch & Scan API** records `EDIT_DETECTED` (new text, previous snapshot preserved) and `DELETE_DETECTED` (`postContent` kept from the last seal) with full operator accounts (`previousHash`/`newHash`).
 - **Ask Your Archive:** local TF-IDF retrieval over the sealed corpus + BYOK model answering with numbered citations to sealed entries — "what did I archive about X?" without any cloud index.
 
+### Public time anchoring — prove the WHEN, in Bitcoin (v1.4.0)
+
+The chain proves integrity; anchoring proves *when the archive existed*, independent of this app:
+
+1. Every sealed entry's canonical body (whose SHA-256 IS the chain hash) is submitted to the **free OpenTimestamps public calendars** — one batched call, no account, no key. Receipt (`.ots`) saves at `vault/stamps.json`.
+2. Within hours the receipt upgrades to a **Bitcoin block attestation**: *"this line existed on or before block NNNNNN (date)"* — forged or backdated proofs are impossible because the block headers are public facts.
+3. New seals are submitted automatically; pending receipts upgrade silently every 6 h (`STAMP_DISABLE=1` turns this off). The **Desktop panel** shows `anchored/pending` counts with a manual *Anchor*, *Upgrade*, and *Time-proof ZIP* (all receipts + preimages + a plain-language `HOW-TO-VERIFY.txt`).
+4. Any third party verifies with the **official independent tools**, no trust in this app: `pip install ots` → `ots verify <hash>.ots` → *"Success! Bitcoin block NNNNNN attests existence as of YYYY-MM-DD"* — with the downloaded preimage named `<hash>` whose SHA-256 equals the file name (verified in testing: `sha256(preimage) == entryHash == <filename>`).
+
+Together: chain integrity ✓ + zero-trust verifier ✓ + public anchor ✓ — *what, who, when* without trusting anyone.
+
 ---
 
 ## 9. Feature: Zero-Trust Verifier bundle
@@ -309,6 +332,7 @@ Desktop (packaged) — all inside your user profile:
 %APPDATA%\FacebookGrabContents\data\
 ├── vault\
 │   ├── chain.ndjson        sealed posts — the append-only hash chain
+│   ├── stamps.json         public time-anchor receipts (.ots preimages)
 │   └── (verifier exports go to your Downloads)
 ├── radar\
 │   ├── watch.json          Deletion Radar watch list
@@ -339,6 +363,13 @@ All routes are same-origin, JSON unless noted. Numeric rate-limiters noted in §
 | `POST /api/vault/hash` | Compute `contentHashOf(text)` for clients. |
 | `POST /api/vault/ask` | Ask Your Archive (RAG with numbered citations). |
 | `GET /api/vault/verifier` | **Zero-Trust Verifier**: standalone HTML bundle (`Content-Disposition: attachment`). |
+| `GET /api/vault/stamps` | Time-anchor overview + per-entry records (`anchored`, `pending`, block heights). |
+| `POST /api/vault/stamp` | Submit unstamped sealed entries to the free OpenTimestamps calendars. |
+| `POST /api/vault/stamp/upgrade` | Pull Bitcoin-block attestations into pending receipts (auto every 6 h). |
+| `GET /api/vault/stamps/download-all` | Court package ZIP: every receipt + preimage + how-to-verify guide. |
+| `GET /api/vault/stamps/:hash/ots` | Single `.ots` receipt (official-tools compatible naming). |
+| `GET /api/vault/stamps/:hash/preimage` | The exact canonical entry line the receipt proves. |
+| `GET /api/vault/export.csv` | Whole archive as an Excel-safe CSV (engagement + anchor columns). |
 | `GET /api/radar/tasks` | Watch list + recent events. |
 | `POST /api/radar/tasks` | Watch a URL. |
 | `DELETE /api/radar/tasks/:postId` | Stop watching. |
@@ -378,6 +409,7 @@ Error shape is deliberate: `{ error: string, code?: ExtractionFailureCode, hint?
 | `AI_RATE_LIMIT_PER_MIN` / `MEDIA_RATE_LIMIT_PER_MIN` / `RADAR_RATE_LIMIT_PER_MIN` | 30 / 120 / 12 | Rate limiter ceilings. |
 | `RADAR_INTERVAL_MS` | 900000 (15 min) | Deletion Radar scan cadence. |
 | `RADAR_DISABLE` | — | `1` turns the Radar loop off (manual API still works). |
+| `STAMP_DISABLE` | — | `1` turns off public time-anchoring (submission + 6 h upgrade loop). |
 | `MERGED_OUTPUT_TTL_MS` | 2 h | Auto-cleanup for temp merged outputs. |
 
 ---

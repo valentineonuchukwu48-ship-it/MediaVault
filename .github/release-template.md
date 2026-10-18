@@ -22,7 +22,31 @@ Created by **Valentine Onuchukwu** — ProsperChild Technology, Nigeria.
 - Unsigned build: right-click the app → **Open** the first time.
 - Apple Silicon (M1/M2/M3/M4) only.
 
-## 🔔 NEW — Deletion Radar (v1.3.0)
+## ⏳ NEW — Court-grade time proof (v1.4.0)
+
+Your archive now proves not just *what* it captured but **WHEN — anchored in the Bitcoin
+blockchain**. Desktop panel → **Evidence vault → Anchor vault to Bitcoin calendar (free)**:
+every sealed entry is stamped into the free public OpenTimestamps calendars (no account, no
+key, no cost). Within hours each receipt upgrades to a Bitcoin block attestation
+(*"this exact evidence existed on or before block NNNNNN"*), impossible to forge or backdate.
+New seals follow automatically; the app shows live `anchored / pending` counts and a
+**Time-proof ZIP** — every receipt + evidence line + a plain-English how-to-verify guide,
+checkable by anyone with the official `ots` tools and zero trust in this app.
+
+## 📊 NEW — Export your archive to Excel (v1.4.0)
+
+Evidence vault section now includes **Export records to Excel (CSV)**: every archived post
+with dates, URLs, authors, engagement numbers, content hashes and each entry's public
+Bitcoin-anchor status — formula-injection-safe, UTF-8 correct on Windows.
+
+## 🔄 Existing users: the app updates itself
+
+If you already have an older version installed, you don't need to visit this page — the app
+checks releases on startup (or via **Desktop → Check for updates**), downloads silently and
+asks *"Restart to install?"*. Your evidence vault, watch list and receipts survive every
+upgrade.
+
+## 🔔 Deletion Radar (v1.3.0)
 
 **Sealing proves what you saw. The Radar watches what Facebook does next.** Open the green
 **Radar** button (bottom-left), paste any Facebook post URL → **Watch**. The engine re-checks it

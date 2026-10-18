@@ -54,7 +54,7 @@ const CHAIN_FILE = path.join(VAULT_DIR, 'chain.ndjson');
 const GENESIS = 'GENESIS';
 
 /** Stable stringify (sorted keys) so hashing is deterministic. */
-function canonical(value: unknown): string {
+export function canonical(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
   const obj = value as Record<string, unknown>;

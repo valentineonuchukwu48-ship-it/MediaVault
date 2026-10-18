@@ -46,6 +46,17 @@ import {
 } from './src/server/radar';
 import crypto from 'crypto';
 import { buildVerifierPage } from './src/server/verifierBundle';
+import {
+  stampUnstampedEntries,
+  upgradeStamps,
+  stampOverview,
+  listStamps,
+  receiptOf,
+  preimageOf,
+  buildReceiptsZip,
+  startStampsLoop,
+} from './src/server/stamps';
+import { buildVaultCsv } from './src/server/vaultExport';
 
 dotenv.config();
 
@@ -1405,6 +1416,106 @@ app.get('/api/vault/verifier', (_req, res) => {
   }
 });
 
+// ==========================================
+// COURT-GRADE TIME PROOF — public anchoring
+// ==========================================
+// The chain proves integrity; these stamps prove WHEN, anchored in the
+// Bitcoin blockchain via the free OpenTimestamps calendars. Receipts are
+// verifiable with the OFFICIAL `ots` tools — no trust in this app needed.
+
+const ENTRY_HASH_RE = /^[0-9a-f]{64}$/i;
+
+app.get('/api/vault/stamps', (_req, res) => {
+  res.json({ success: true, ...listStamps() });
+});
+
+// Submit every unrestamped sealed entry to the public calendars (free).
+app.post('/api/vault/stamp', async (_req, res) => {
+  try {
+    const result = await stampUnstampedEntries();
+    res.json({ success: true, ...result, ...stampOverview() });
+  } catch (err: any) {
+    console.error('Stamp submission error:', err);
+    res.status(500).json({ error: err.message || 'Calendar submission failed — check your connection and retry.' });
+  }
+});
+
+// Upgrade pending receipts into Bitcoin-block attestations (also runs silently every 6 h).
+app.post('/api/vault/stamp/upgrade', async (_req, res) => {
+  try {
+    const result = await upgradeStamps();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error('Stamp upgrade error:', err);
+    res.status(500).json({ error: err.message || 'Upgrade failed — try again later.' });
+  }
+});
+
+// The raw receipt for one entry — pairs with the preimage for `ots verify`.
+app.get('/api/vault/stamps/:hash/ots', (req, res) => {
+  const { hash } = req.params;
+  if (!ENTRY_HASH_RE.test(hash)) {
+    res.status(400).json({ error: 'Invalid entry hash' });
+    return;
+  }
+  const receipt = receiptOf(hash);
+  if (!receipt) {
+    res.status(404).json({ error: 'No receipt for that entry — stamp it first.' });
+    return;
+  }
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Disposition', `attachment; filename="${hash}.ots"`);
+  res.send(receipt);
+});
+
+// The exact bytes the receipt proves (canonical entry JSON, one line).
+app.get('/api/vault/stamps/:hash/preimage', (req, res) => {
+  const { hash } = req.params;
+  if (!ENTRY_HASH_RE.test(hash)) {
+    res.status(400).json({ error: 'Invalid entry hash' });
+    return;
+  }
+  const preimage = preimageOf(hash);
+  if (!preimage) {
+    res.status(404).json({ error: 'No preimage for that entry — stamp it first.' });
+    return;
+  }
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${hash}"`);
+  res.send(preimage);
+});
+
+// One-click court package: all receipts + preimages + how-to-verify guide.
+app.get('/api/vault/stamps/download-all', async (_req, res) => {
+  try {
+    const zip = await buildReceiptsZip();
+    if (!zip) {
+      res.status(404).json({ error: 'Nothing stamped yet — anchor the vault first.' });
+      return;
+    }
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="facebookgrabcontents-time-proof-${stamp}.zip"`);
+    res.send(zip);
+  } catch (err: any) {
+    console.error('Receipts zip error:', err);
+    res.status(500).json({ error: err.message || 'Failed to build receipts bundle' });
+  }
+});
+
+// ==========================================
+//EXCEL / CSV EXPORT — the whole archive as a spreadsheet
+// ==========================================
+app.get('/api/vault/export.csv', (_req, res) => {
+  const stamps = new Map(listStamps().records.map((r) => [r.hash, r.status]));
+  const csv = buildVaultCsv(loadChain(), (hash) => stamps.get(hash) ?? 'not stamped');
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="facebookgrabcontents-records-${stamp}.csv"`);
+  // BOM so Excel on Windows opens the file as UTF-8 by default.
+  res.send(`\uFEFF${csv}`);
+});
+
 // Watch & Scan: re-fetch sealed posts and record EDIT/DELETE events.
 // Body: { posts: [{ id, url, postContent|null }] } — postContent null = unfetchable
 app.post('/api/vault/scan', (req, res) => {
@@ -2212,6 +2323,9 @@ async function startServer() {
     // Deletion Radar — periodic anonymous re-checks of watched posts
     // (disable with RADAR_DISABLE=1).
     if (process.env.RADAR_DISABLE !== '1') startRadarLoop();
+    // Public time anchors — auto-submit new seals + upgrade pending
+    // receipts every 6 h (disable with STAMP_DISABLE=1).
+    if (process.env.STAMP_DISABLE !== '1') startStampsLoop();
   });
   return server;
 }

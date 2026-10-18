@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2, Smartphone, Wifi, ShieldCheck } from 'lucide-react';
+import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2, Smartphone, Wifi, ShieldCheck, Anchor, FileSpreadsheet, Hourglass, ExternalLink } from 'lucide-react';
 import {
   getDesktop,
   isDesktop,
@@ -33,6 +33,36 @@ export const DesktopPanel: React.FC = () => {
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [vaultInfo, setVaultInfo] = useState<{ entries: number; integrity: string } | null>(null);
+  const [stampsInfo, setStampsInfo] = useState<{ entries: number; stamped: number; anchored: number; pending: number } | null>(null);
+  const [stampBusy, setStampBusy] = useState('');
+  const [stampMsg, setStampMsg] = useState('');
+
+  const refreshStamps = async () => {
+    try {
+      const res = await fetch('/api/vault/stamps');
+      if (!res.ok) return;
+      const info = await res.json();
+      setStampsInfo(info.overview || null);
+    } catch {
+      /* engine offline */
+    }
+  };
+
+  const saveBlob = async (url: string, filename: string) => {
+    const res = await fetch(url);
+    if (!res.ok) return false;
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }, 4000);
+    return true;
+  };
 
   // Ask the engine what LAN URL it currently serves (empty while disabled).
   const refreshLanInfo = async () => {
@@ -63,6 +93,7 @@ export const DesktopPanel: React.FC = () => {
       })
       .catch(() => {});
     refreshLanInfo();
+    refreshStamps();
     fetch('/api/health')
       .then((r) => (r.ok ? r.json() : null))
       .then((info) => setVaultInfo(info?.vault || null))
@@ -131,6 +162,68 @@ export const DesktopPanel: React.FC = () => {
     } catch {
       /* engine unreachable — nothing sensible to do inside the panel */
     }
+  };
+
+  // ---- Court-grade time proof (public Bitcoin anchoring) ----
+  const stampNow = async () => {
+    if (stampBusy) return;
+    setStampBusy('stamp');
+    setStampMsg('');
+    try {
+      const res = await fetch('/api/vault/stamp', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      setStampMsg(res.ok && data.success ? `Submitted ${data.stamped} entr${data.stamped === 1 ? 'y' : 'ies'} to the public calendar — Bitcoin anchor lands within a few hours.` : data.error || 'Submission failed — try again.');
+      await refreshStamps();
+    } catch {
+      setStampMsg('Engine unreachable — try again.');
+    }
+    setStampBusy('');
+  };
+
+  const upgradeReceipts = async () => {
+    if (stampBusy) return;
+    setStampBusy('upgrade');
+    setStampMsg('');
+    try {
+      const res = await fetch('/api/vault/stamp/upgrade', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setStampMsg(data.pending > 0 ? `${data.pending} still pending — the calendars publish Bitcoin anchors in batches; check again later or let the app upgrade silently.` : `All ${data.anchored} receipt${data.anchored === 1 ? '' : 's'} anchored in Bitcoin blocks.`);
+      } else {
+        setStampMsg(data.error || 'Upgrade failed — try again later.');
+      }
+      await refreshStamps();
+    } catch {
+      setStampMsg('Engine unreachable — try again.');
+    }
+    setStampBusy('');
+  };
+
+  const downloadTimeProofZip = async () => {
+    if (stampBusy) return;
+    setStampBusy('zip');
+    const day = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    let ok = false;
+    try {
+      ok = await saveBlob('/api/vault/stamps/download-all', `facebookgrabcontents-time-proof-${day}.zip`);
+    } catch {
+      ok = false;
+    }
+    if (!ok) setStampMsg('Nothing stamped yet — anchor the vault first.');
+    setStampBusy('');
+  };
+
+  const exportRecordsCsv = async () => {
+    if (stampBusy) return;
+    setStampBusy('csv');
+    let ok = false;
+    try {
+      ok = await saveBlob('/api/vault/export.csv', `facebookgrabcontents-records-${new Date().toISOString().slice(0, 10)}.csv`);
+    } catch {
+      ok = false;
+    }
+    if (!ok) setStampMsg('Export failed — is the engine running?');
+    setStampBusy('');
   };
 
   const cookieFileName = cookiesFile ? cookiesFile.split(/[\\/]/).pop() : '';
@@ -287,6 +380,88 @@ export const DesktopPanel: React.FC = () => {
                 One portable <span className="text-slate-400">.html</span> file: anyone can open it
                 (lawyer, court, journalist) and re-verify every sealed archive themselves — in their
                 browser, with no install, no account, no trust in this app.
+              </p>
+
+              {/* Court-grade time proof — public Bitcoin anchoring (v1.4.0) */}
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.04] p-3 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+                    <Anchor className="w-3.5 h-3.5" /> Court-grade time proof
+                  </p>
+                  {stampsInfo && stampsInfo.stamped > 0 && (
+                    <span className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[9.5px] font-bold ${
+                      stampsInfo.pending > 0
+                        ? 'bg-amber-500/15 text-amber-300'
+                        : 'bg-emerald-500/15 text-emerald-300'
+                    }`}>
+                      {stampsInfo.pending > 0 ? <Hourglass className="w-3 h-3" /> : <Check className="w-3 h-3" />}
+                      {stampsInfo.anchored}/{stampsInfo.stamped} anchored
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10.5px] leading-relaxed text-slate-500">
+                  Stamps every sealed entry into the <span className="text-slate-300">free public Bitcoin calendar</span>
+                  {' '}— anyone can prove your archive existed on a real date with official tools,
+                  without trusting this app.
+                </p>
+                <button
+                  onClick={stampNow}
+                  disabled={!!stampBusy}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 disabled:opacity-60 text-white text-xs font-semibold transition-colors"
+                >
+                  {stampBusy === 'stamp' ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Submitting to public calendar…
+                    </>
+                  ) : (
+                    <>
+                      <Anchor className="w-3.5 h-3.5" /> Anchor vault to Bitcoin calendar (free)
+                    </>
+                  )}
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={upgradeReceipts}
+                    disabled={!!stampBusy || !stampsInfo?.pending}
+                    title="Upgrade pending receipts to Bitcoin-block attestations"
+                    className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-[11px] font-medium transition-colors border border-slate-700/60"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-amber-300 ${stampBusy === 'upgrade' ? 'animate-spin' : ''}`} />
+                    Upgrade receipts
+                  </button>
+                  <button
+                    onClick={downloadTimeProofZip}
+                    disabled={!!stampBusy || !stampsInfo?.stamped}
+                    title="Download every receipt + preimage + how-to-verify guide (ZIP)"
+                    className="flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 text-[11px] font-medium transition-colors border border-slate-700/60"
+                  >
+                    <Download className="w-3.5 h-3.5 text-amber-300" /> Time-proof ZIP
+                  </button>
+                </div>
+                {stampMsg && (
+                  <p className="text-[10.5px] leading-relaxed text-amber-200/90">{stampMsg}</p>
+                )}
+              </div>
+
+              {/* Records export for spreadsheets */}
+              <button
+                onClick={exportRecordsCsv}
+                disabled={!!stampBusy}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-60 text-slate-100 text-xs font-medium transition-colors border border-slate-700/60"
+              >
+                {stampBusy === 'csv' ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 text-emerald-300 animate-spin" /> Exporting…
+                  </>
+                ) : (
+                  <>
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-300" /> Export records to Excel (CSV)
+                  </>
+                )}
+              </button>
+              <p className="text-[10.5px] text-slate-500">
+                Every archived post, date, URL, engagement numbers and hashes in one auditable
+                spreadsheet — including each entry&apos;s public Bitcoin-anchor status.
               </p>
             </div>
 

@@ -1,5 +1,11 @@
 # FacebookGrabContents
 
+[![Release](https://img.shields.io/github/v/release/valentineonuchukwu48-ship-it/facebookgrabcontents?include_prereleases&logo=github&label=release)](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/releases)
+[![Tests](https://img.shields.io/github/actions/workflow/status/valentineonuchukwu48-ship-it/facebookgrabcontents/ci.yml?branch=main&label=tests&logo=github)](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Windows_%7C_macOS_%7C_Linux_%7C_Android-lightgrey?logo=windows95)](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/releases)
+[![Docs](https://img.shields.io/badge/docs-full%20manual-8A2BE2?logo=readme)](docs/DOCUMENTATION.md)
+
 **Archive Facebook posts as evidence-grade PDFs, and download or merge Facebook videos (with sound) — as a desktop app that runs entirely on your own machine.**
 
 No servers, no accounts, no uploads. Your posts, videos and API keys never leave your computer.
@@ -13,6 +19,8 @@ No servers, no accounts, no uploads. Your posts, videos and API keys never leave
 - 🔊 **Audio guaranteed** — Facebook serves video and audio as separate streams; the app detects that and muxes them back together, so downloads are never silent.
 - 🗣️ **AI voiceovers** — drafts a narration script and dubs natural text-to-speech onto any clip.
 - 🔔 **Deletion Radar** — watch posts you already archived; the engine quietly re-checks them on a schedule and alerts **every open window (PC and phone)** the moment a public copy is edited or deleted. Your sealed original stays in the vault no matter what. **← NEW in v1.3.0**
+- ⏳ **Court-grade time proof** — anchor every sealed entry into the free public Bitcoin calendar (OpenTimestamps); anyone can prove your archive existed on a real date with official independent tools. **← NEW in v1.4.0**
+- 📊 **Excel/CSV export** — the whole sealed archive as one auditable spreadsheet (dates, URLs, engagement, hashes, anchor status). **← NEW in v1.4.0**
 - 🛡️ **Tamper-evident Evidence Vault** — every sealed post is appended to a SHA-256 hash chain, so any later edit or deletion is cryptographically detectable. Includes local retrieval ("Ask your archive") that answers with cited, sealed sources.
 - 🤖 **Bring Your Own Key AI** — Google Gemini natively, or any OpenAI-compatible provider (OpenRouter, Groq, NVIDIA NIM, DeepSeek, Cerebras, Mistral, …).
 - 🍪 **One-click Facebook login** — reuses your own browser session via `--cookies-from-browser`, which fixes private, age-gated and blocked videos with no manual cookie export.
@@ -28,6 +36,9 @@ No servers, no accounts, no uploads. Your posts, videos and API keys never leave
 3. Run it. Windows may show a *"Windows protected your PC"* SmartScreen prompt because the build is not code-signed — click **More info → Run anyway**.
 
 > The app bundles everything it needs (`ffmpeg`, `ffprobe`, `yt-dlp`) — you do **not** need to install anything else.
+
+### Already have an older version?
+Don't head to GitHub — **the app updates itself**: it checks on every startup (or press **Desktop → Check for updates**), downloads in the background and asks *"Restart to install?"*. All your sealed evidence and settings survive every upgrade.
 
 ### First run
 1. Open the **Desktop** button (bottom-right).
@@ -86,6 +97,22 @@ Open the green **Radar** button (bottom-left), paste a Facebook post URL → **W
 - **Delete detected** → the radar only fires `DELETED` after two consecutive misses (no false alarms from network hiccups), the vault preserves your sealed original forever, and every window is alerted instantly.
 
 A full timeline of alerts is kept under `data\radar\events.json`. Full docs: **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)**.
+
+---
+
+## ⏳ Court-grade time proof (NEW in v1.4.0)
+
+The core's brakes don't just prove integrity — they prove **when your archive existed**, independent of this app:
+
+1. **Desktop panel → Evidence vault → Anchor vault to Bitcoin calendar (free).** Every sealed entry is submitted to the free public OpenTimestamps calendars (one batched call, no account, no cost). New seals follow automatically.
+2. Within hours each receipt becomes a **Bitcoin block attestation** — *"this exact evidence existed on or before block NNNNNN"* — impossible to forge or backdate.
+3. **Time-proof ZIP** gives a lawyer/court everything: every receipt + evidence line + a plain-English guide, verifiable with the official `ots` tools and zero trust in this app.
+
+The Desktop panel shows live `anchored / pending` counts.
+
+## 📊 Export your archive to Excel (NEW in v1.4.0)
+
+**Evidence vault → Export records to Excel (CSV)** — every archived post with date, URL, author, engagement numbers, content hashes and its public Bitcoin-anchor status. Formula-injection-safe and UTF-8 correct on Windows Excel.
 
 ---
 
