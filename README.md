@@ -12,7 +12,8 @@ No servers, no accounts, no uploads. Your posts, videos and API keys never leave
 - 🎬 **Video download & merge** — extracts direct MP4 streams (Reels, Watch, post videos) with `yt-dlp`, then merges multiple clips into one MP4 with synchronised, normalised audio via `FFmpeg`.
 - 🔊 **Audio guaranteed** — Facebook serves video and audio as separate streams; the app detects that and muxes them back together, so downloads are never silent.
 - 🗣️ **AI voiceovers** — drafts a narration script and dubs natural text-to-speech onto any clip.
-- 🔐 **Tamper-evident Evidence Vault** — every sealed post is appended to a SHA-256 hash chain, so any later edit or deletion is cryptographically detectable. Includes local retrieval ("Ask your archive") that answers with cited, sealed sources.
+- 🔔 **Deletion Radar** — watch posts you already archived; the engine quietly re-checks them on a schedule and alerts **every open window (PC and phone)** the moment a public copy is edited or deleted. Your sealed original stays in the vault no matter what. **← NEW in v1.3.0**
+- 🛡️ **Tamper-evident Evidence Vault** — every sealed post is appended to a SHA-256 hash chain, so any later edit or deletion is cryptographically detectable. Includes local retrieval ("Ask your archive") that answers with cited, sealed sources.
 - 🤖 **Bring Your Own Key AI** — Google Gemini natively, or any OpenAI-compatible provider (OpenRouter, Groq, NVIDIA NIM, DeepSeek, Cerebras, Mistral, …).
 - 🍪 **One-click Facebook login** — reuses your own browser session via `--cookies-from-browser`, which fixes private, age-gated and blocked videos with no manual cookie export.
 
@@ -64,14 +65,27 @@ No installation, no account, no trust in the app itself. **← NEW in v1.2.0**
 Phone Connect puts the same full experience on your phone over your Wi-Fi. The PC keeps doing the heavy lifting (yt-dlp, ffmpeg, vault, AI), so nothing is missing on mobile:
 
 1. Open the desktop app on your PC → **Desktop panel (bottom-right) → Phone Connect → Share to my phone**.
-2. Scan the QR code with your phone camera (phone and PC on the **same Wi-Fi**). The full app opens on the phone.
+2. Scan the QR code with your phone camera (phone and PC on the **same Wi-Fi**). The full app opens on the phone — the QR carries a one-time **6-digit pairing code**, so nobody else on the Wi-Fi can reach your engine.
 3. Install it like a real app:
    - **Android (Chrome):** menu (⋮) → **Add to Home screen** / **Install app** — served as an installable PWA (manifest + service worker).
    - **iPhone (Safari):** Share → **Add to Home Screen**.
 4. Or grab the native **Android APK** from the [Releases](../../releases) page (`FacebookGrabContents-Mobile-<version>.apk`):
-   install, open, type the address from **Desktop → Phone Connect** (e.g. `192.168.1.5:3000`) once — the app remembers it. Downloads land in your phone's Downloads folder.
+   install, open, type the address from **Desktop → Phone Connect** (e.g. `192.168.1.5:3000`) once, then the **pairing code** shown in the panel — the app remembers both. Downloads land in your phone's Downloads folder.
 
 > The engine only listens on your LAN while **Phone Connect** is on (the toggle rebinds the engine live). It stays loopback-only otherwise.
+
+---
+
+## 🔔 Deletion Radar (NEW in v1.3.0)
+
+**Sealing proves what you saw. The Radar watches what Facebook does next.**
+
+Open the green **Radar** button (bottom-left), paste a Facebook post URL → **Watch**. The engine re-checks it anonymously every 15 minutes (or via **Check now**) exactly as a logged-out visitor sees it:
+
+- **Edit detected** → the vault records both versions and every open window (PC **and** paired phone) gets a live alert.
+- **Delete detected** → the radar only fires `DELETED` after two consecutive misses (no false alarms from network hiccups), the vault preserves your sealed original forever, and every window is alerted instantly.
+
+A full timeline of alerts is kept under `data\radar\events.json`. Full docs: **[docs/DOCUMENTATION.md](docs/DOCUMENTATION.md)**.
 
 ---
 

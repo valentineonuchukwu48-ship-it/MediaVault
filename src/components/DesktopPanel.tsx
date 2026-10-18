@@ -29,6 +29,7 @@ export const DesktopPanel: React.FC = () => {
   const [phoneConnect, setPhoneConnect] = useState(false);
   const [lanUrls, setLanUrls] = useState<string[]>([]);
   const [qrUrl, setQrUrl] = useState('');
+  const [pairCode, setPairCode] = useState('');
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState('');
   const [vaultInfo, setVaultInfo] = useState<{ entries: number; integrity: string } | null>(null);
@@ -41,6 +42,7 @@ export const DesktopPanel: React.FC = () => {
       const info = await res.json();
       setPhoneConnect(!!info.enabled);
       setLanUrls(Array.isArray(info.urls) ? info.urls : []);
+      setPairCode(info.pairCode || '');
       setQrUrl(info.urls && info.urls[0] ? await generateQrDataUrl(info.urls[0]) : '');
     } catch {
       /* engine may be mid-restart; the toggle re-queries */
@@ -336,7 +338,13 @@ export const DesktopPanel: React.FC = () => {
                   )}
                   {lanUrls.length > 0 && (
                     <p className="text-center text-[11px] font-mono text-cyan-300 break-all">
-                      {lanUrls[0].replace(/^https?:\/\//, '')}
+                      {lanUrls[0].replace(/\/\?pair=[0-9]+$/, '').replace(/^https?:\/\//, '')}
+                    </p>
+                  )}
+                  {pairCode && (
+                    <p className="text-center text-[10.5px] text-slate-400">
+                      Pairing code: <span className="font-mono font-semibold text-amber-300 tracking-widest">{pairCode}</span>
+                      <span className="text-slate-600"> (Android APK users type this after connecting)</span>
                     </p>
                   )}
                   <p className="text-[10.5px] leading-relaxed text-slate-400">

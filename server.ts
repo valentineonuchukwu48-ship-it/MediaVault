@@ -34,7 +34,16 @@ import {
   MERGED_DIR,
   PUBLIC_DIR,
   DIST_DIR,
+  DATA_DIR,
 } from './src/server/paths';
+import {
+  startRadarLoop,
+  addRadarTask,
+  removeRadarTask,
+  listRadarTasks,
+  runRadarScan,
+  radarEventStream,
+} from './src/server/radar';
 import crypto from 'crypto';
 import { buildVerifierPage } from './src/server/verifierBundle';
 
@@ -161,7 +170,157 @@ app.use('/api/generate-music', mediaRateLimit);
 
 
 app.use(express.json({ limit: '100mb' }));
+// Pairing pages are form-submitted:
+app.use(express.urlencoded({ extended: false }));
 ensureDataDirs();
+
+// ==========================================
+// PHONE CONNECT PAIRING — network strangers
+// ==========================================
+// While the engine binds to the LAN (Phone Connect on), every remote request
+// must present the pairing cookie. The cookie is granted for the 6-digit code
+// shown in the Desktop panel (and embedded in the QR code). Local loopback
+// consumers — the Electron window itself — are exempt, so the desktop
+// experience never changes.
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+interface PairingConfig {
+  code: string;
+  secret: string;
+}
+
+function readPairing(): PairingConfig | null {
+  try {
+    const settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
+    const p = settings.phonePairing;
+    if (p && typeof p.code === 'string' && typeof p.secret === 'string') {
+      return { code: p.code, secret: p.secret };
+    }
+  } catch {
+    /* no settings yet */
+  }
+  return null;
+}
+
+function ensurePairing(): PairingConfig {
+  const existing = readPairing();
+  if (existing) return existing;
+  let code = '';
+  const raw = crypto.randomInt(0, 1_000_000);
+  code = String(raw).padStart(6, '0');
+  const created: PairingConfig = { code, secret: crypto.randomBytes(32).toString('hex') };
+  try {
+    const settings = fs.existsSync(SETTINGS_FILE)
+      ? JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))
+      : {};
+    fs.writeFileSync(
+      SETTINGS_FILE,
+      JSON.stringify({ ...settings, phonePairing: created }, null, 2),
+      'utf8'
+    );
+  } catch (err) {
+    console.warn('[pairing] could not persist pairing config:', err);
+  }
+  return created;
+}
+
+function timingSafeEq(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+function lanGateEnabled(): boolean {
+  return (process.env.HOST || '') !== '127.0.0.1';
+}
+
+function isLoopbackHost(req: express.Request): boolean {
+  const host = String(req.headers.host || '').toLowerCase();
+  return host.startsWith('127.0.0.1') || host.startsWith('localhost') || host.startsWith('[::1]');
+}
+
+function parseCookies(req: express.Request): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of String(req.headers.cookie || '').split(';')) {
+    const idx = part.indexOf('=');
+    if (idx > 0) out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return out;
+}
+
+/* Body of the standalone pairing page — deliberately dependency-free so a
+   stranger's first contact with the engine is this clean, quiet screen. */
+function renderPairingPage(error?: string): string {
+  const errHtml = error
+    ? `<p style="color:#fb7185;font-size:13px;margin:10px 0 0">${error.replace(/</g, '&lt;')}</p>`
+    : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pair this device — FacebookGrabContents</title>
+<style>body{margin:0;background:#0b1020;color:#f1f5f9;font:14px/1.5 "Plus Jakarta Sans",-apple-system,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:20px}
+.card{background:#111a2e;border:1px solid #223052;border-radius:16px;padding:32px 26px;max-width:420px;width:100%}
+h1{font-size:18px;margin:0 0 6px}.sub{color:#94a3b8;font-size:12.5px;margin-bottom:20px}
+input{width:100%;box-sizing:border-box;padding:12px 14px;border-radius:10px;border:1px solid #223052;background:#0b1020;color:#f1f5f9;font-size:20px;letter-spacing:.4em;text-align:center;outline:none}
+button{width:100%;margin-top:14px;padding:12px;border:0;border-radius:10px;background:linear-gradient(to right,#6366f1,#0891b2);color:#fff;font-weight:600;font-size:14px;cursor:pointer}
+.foot{color:#475569;font-size:11px;margin-top:18px}</style></head><body>
+<div class="card"><h1>&#128274; Pair this device</h1>
+<p class="sub">Type the 6-digit pairing code shown on your computer in<br><b>Desktop &rarr; Phone Connect</b>.</p>
+<form method="post" action="/pair"><input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="off" autofocus required>
+<button type="submit">Pair &amp; open the app</button>${errHtml}</form>
+<p class="foot">FacebookGrabContents &mdash; ProsperChild Technology, Nigeria</p></div></body></html>`;
+}
+
+app.use((req, res, next) => {
+  if (!lanGateEnabled()) return next(); // loopback-only: nothing to protect
+  if (isLoopbackHost(req)) return next(); // the Electron window itself
+  const pathname = req.path;
+  if (pathname === '/pair') return next(); // login page (POST validates below)
+  if (pathname === '/api/health') return next(); // readiness probes
+
+  const pairing = ensurePairing();
+  const cookies = parseCookies(req);
+  const cookieOk = typeof cookies.fgc_pair === 'string' && timingSafeEq(cookies.fgc_pair, pairing.secret);
+
+  // QR flow: the scanned URL carries ?pair=XXXXXX — grant the cookie and
+  // continue with this very request (no redirect needed).
+  const pairParam = String(req.query.pair || '');
+  if (pairParam && timingSafeEq(pairParam, pairing.code)) {
+    res.setHeader(
+      'Set-Cookie',
+      `fgc_pair=${pairing.secret}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`
+    );
+    return next();
+  }
+
+  if (cookieOk) return next();
+
+  if (pathname.startsWith('/api')) {
+    return res.status(401).json({ error: 'Pairing required. Open the LAN URL and enter the code.' });
+  }
+  return res.status(403).send(renderPairingPage());
+});
+
+// Correct codes can only be tried 8×/minute per address — brute-forcing the
+// 1,000,000-code space over HTTP is not a thing anyone accomplishes.
+app.use('/pair', makeRateLimiter(8, 'Pairing'));
+
+// The pairing form. Wrong codes just re-render the page.
+app.post('/pair', (req, res) => {
+  const code = String((req.body && req.body.code) || '').trim();
+  const pairing = ensurePairing();
+  if (timingSafeEq(code, pairing.code)) {
+    res.setHeader(
+      'Set-Cookie',
+      `fgc_pair=${pairing.secret}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000`
+    );
+    return res.redirect('/');
+  }
+  res.status(403).send(renderPairingPage('That code did not match. Check the Desktop panel and try again.'));
+});
+
+app.get('/pair', (_req, res) => {
+  res.status(200).send(renderPairingPage());
+});
 const uploadsDir = UPLOADS_DIR;
 const audioDir = AUDIO_DIR;
 // /samples are immutable shipped assets: prefer the dev public/ folder, else the
@@ -1082,15 +1241,76 @@ function lanUrlCandidates(): string[] {
 
 // The engine binds to the host the Electron shell chose (127.0.0.1 by default,
 // 0.0.0.0 when the user toggles Phone Connect in the Desktop panel). This
-// endpoint tells the UI what LAN URL a phone should open — and whether the
+// endpoint tells the UI what LAN URL a phone should open — including the 6-digit
+// pairing code so the QR code pairs a phone in a single scan — and whether the
 // toggle is on at all (a restarted engine answers after it rebinds).
 app.get('/api/lan-info', (_req, res) => {
-  const enabled = (process.env.HOST || '') !== '127.0.0.1';
-  res.json({
-    enabled,
-    port: String(PORT),
-    urls: enabled ? lanUrlCandidates() : [],
-  });
+  const enabled = lanGateEnabled();
+  if (!enabled) {
+    res.json({ enabled: false, port: String(PORT), urls: [], pairCode: null });
+    return;
+  }
+  const pairing = ensurePairing();
+  const urls = lanUrlCandidates().map((u) => `${u}/?pair=${pairing.code}`);
+  res.json({ enabled, port: String(PORT), urls, pairCode: pairing.code });
+});
+
+// ==========================================
+// DELETION RADAR — the button that presses itself
+// ==========================================
+// Watch list of archived posts; the engine re-checks them periodically and
+// alerts every open window (desktop + phone over Wi-Fi) when Facebook edits
+// or deletes a watched post. The original text lives on in the vault either
+// way — that is the whole point.
+
+const radarRateLimit = makeRateLimiter(Number(process.env.RADAR_RATE_LIMIT_PER_MIN || 12), 'Radar');
+app.use('/api/radar', radarRateLimit);
+
+// Current watch list + recent alert history
+app.get('/api/radar/tasks', (_req, res) => {
+  res.json({ success: true, ...listRadarTasks() });
+});
+
+// Watch a post. The URL is accepted in any form the app understands.
+app.post('/api/radar/tasks', async (req, res) => {
+  const { url, postId } = req.body || {};
+  if (!url || typeof url !== 'string' || !/facebook\.com/i.test(url)) {
+    res.status(400).json({ error: 'A valid Facebook post URL is required' });
+    return;
+  }
+  try {
+    const task = await addRadarTask(String(url), typeof postId === 'string' ? postId : undefined);
+    res.json({ success: true, task });
+  } catch (err: any) {
+    console.error('Radar add error:', err);
+    res.status(500).json({ error: err.message || 'Failed to add watch task' });
+  }
+});
+
+// Stop watching a post (the vault keeps its sealed history regardless).
+app.delete('/api/radar/tasks/:postId', (req, res) => {
+  const removed = removeRadarTask(String(req.params.postId));
+  if (!removed) {
+    res.status(404).json({ error: 'No watch task for that postId' });
+    return;
+  }
+  res.json({ success: true });
+});
+
+// Manual spot-check ("Check now" button) — returns how many alerts fired.
+app.post('/api/radar/run', async (_req, res) => {
+  try {
+    const result = await runRadarScan();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    console.error('Radar run error:', err);
+    res.status(500).json({ error: err.message || 'Radar scan failed' });
+  }
+});
+
+// Live alert stream for every open window (desktop + phone).
+app.get('/api/radar/stream', (req, res) => {
+  radarEventStream(res);
 });
 
 // Health & readiness endpoint (senior-dev standard)
@@ -1989,6 +2209,9 @@ async function startServer() {
   const server = app.listen(Number(PORT), host, () => {
     console.log(`FGC_READY port=${PORT} host=${host}`);
     console.log(`Server running on http://${host}:${PORT}`);
+    // Deletion Radar — periodic anonymous re-checks of watched posts
+    // (disable with RADAR_DISABLE=1).
+    if (process.env.RADAR_DISABLE !== '1') startRadarLoop();
   });
   return server;
 }

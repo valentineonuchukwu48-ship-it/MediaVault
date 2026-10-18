@@ -22,7 +22,27 @@ Created by **Valentine Onuchukwu** — ProsperChild Technology, Nigeria.
 - Unsigned build: right-click the app → **Open** the first time.
 - Apple Silicon (M1/M2/M3/M4) only.
 
-## 🔐 NEW — Zero-trust evidence verifier
+## 🔔 NEW — Deletion Radar (v1.3.0)
+
+**Sealing proves what you saw. The Radar watches what Facebook does next.** Open the green
+**Radar** button (bottom-left), paste any Facebook post URL → **Watch**. The engine re-checks it
+anonymously on a schedule (like a logged-out visitor): if the post is **edited**, the vault keeps
+both versions; if it is **deleted**, the vault keeps your sealed original — and **every open
+window (your PC and paired phones) gets the alert live**, the moment it happens. No false
+alarms: a deleted verdict needs two consecutive misses.
+
+## 🔐 LAN security upgrade (v1.3.0)
+
+Phone Connect now **pairs devices with a 6-digit code**: the QR code carries it, the desktop
+panel shows it (APK users type it), wrong codes are blocked, and brute-force attempts are
+rate-limited to 8/minute. Your engine on the Wi-Fi stays yours alone.
+
+## 📖 Full documentation
+
+New: **[docs/DOCUMENTATION.md](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/blob/main/docs/DOCUMENTATION.md)** — the complete manual: how every feature works (vault hash math, video
+pipeline, radar, verifier), all API routes, environment variables, troubleshooting and FAQ.
+
+## 🔐 Zero-trust evidence verifier
 
 Desktop → **Evidence vault** → **Download zero-trust verifier**. It produces a single portable
 `.html` file containing your whole sealed archive plus an independent verification engine —
@@ -44,7 +64,8 @@ Phone Connect puts the **same full app on your phone** over your Wi-Fi — the P
 `FacebookGrabContents-Mobile-{{VERSION}}.apk` — installs with its own pairing screen:
 1. Turn on **Phone Connect** in the desktop app.
 2. Open the APK, type the address shown in the panel (e.g. `192.168.1.5:3000`).
-3. Done — the app remembers your PC. Videos download straight into your phone's Downloads.
+3. Type the **6-digit pairing code** shown next to the QR code — the pairing screen appears in the app.
+4. Done — the app remembers both. Videos download straight into your phone's Downloads.
 
 Sideload note: unsigned build — Android asks you to allow "Install unknown apps" for your browser once.
 

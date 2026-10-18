@@ -17,6 +17,7 @@ import { AiAssistantModal } from './components/AiAssistantModal';
 import { ChatPage } from './components/ChatPage';
 import { DesktopPanel } from './components/DesktopPanel';
 import { MobileInstallBar } from './components/MobileInstallBar';
+import { DeletionRadar } from './components/DeletionRadar';
 import { generateCombinedPdf, exportSinglePostPdf } from './utils/pdfGenerator';
 import { Layers } from 'lucide-react';
 
@@ -601,6 +602,8 @@ export default function App() {
 
       {/* Desktop-only controls (folders, browser cookies, updates) */}
       <DesktopPanel />
+      {/* Deletion Radar — watch archived posts for silent edits/deletions */}
+      <DeletionRadar />
       {/* Mobile: "install this app" prompt when opened on a phone */}
       <MobileInstallBar />
     </div>
