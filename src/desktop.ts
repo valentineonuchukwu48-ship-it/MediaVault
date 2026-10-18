@@ -30,6 +30,13 @@ export interface UpdateStatus {
   version?: string;
 }
 
+export interface PhoneConnectResult {
+  ok: boolean;
+  enabled: boolean;
+  port?: number;
+  error?: string;
+}
+
 export interface DesktopBridge {
   isDesktop: true;
   platform: string;
@@ -44,6 +51,7 @@ export interface DesktopBridge {
   pickCookiesFile(): Promise<CookiesPickResult>;
   clearCookies(): Promise<{ ok: boolean }>;
   onUpdate(cb: (status: UpdateStatus) => void): () => void;
+  setPhoneConnect(enable: boolean): Promise<PhoneConnectResult>;
 }
 
 declare global {

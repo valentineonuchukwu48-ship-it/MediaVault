@@ -27,6 +27,13 @@ release/
 cookies.txt
 secrets/
 
+# Android companion app
+android/.gradle/
+android/local.properties
+android/.idea/
+*.apk
+
+
 # Platform-specific binary. Builds fetch the correct yt-dlp/ffmpeg for their OS
 # via `npm run fetch:binaries`; never commit the binaries.
 yt-dlp.exe

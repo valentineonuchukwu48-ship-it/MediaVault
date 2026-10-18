@@ -5,6 +5,7 @@ import fs from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { lookup } from 'dns/promises';
+import os from 'os';
 import { GoogleGenAI } from '@google/genai';
 
 const execAsync = promisify(exec);
@@ -1056,6 +1057,40 @@ app.post('/api/ai/models', async (req, res) => {
 // Hash-chained (SHA-256) sealed archive with edit/delete detection and
 // retrieval over the sealed corpus.
 // ==========================================
+
+// ==========================================
+// PHONE CONNECT — installable mobile app (PWA) over the local Wi-Fi
+// ==========================================
+
+// Private IPv4 addresses only (192.168.x.x / 10.x.x.x / 172.16-31.x.x).
+// This is where the desktop app advertises itself to phones on the same
+// Wi-Fi. Loopback and link-local are never advertised.
+function lanUrlCandidates(): string[] {
+  const urls: string[] = [];
+  const port = String(PORT);
+  const ifaces = os.networkInterfaces();
+  for (const list of Object.values(ifaces)) {
+    for (const addr of list || []) {
+      if (addr.family !== 'IPv4' || addr.internal) continue;
+      if (!/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(addr.address)) continue;
+      urls.push(`http://${addr.address}:${port}`);
+    }
+  }
+  return urls;
+}
+
+// The engine binds to the host the Electron shell chose (127.0.0.1 by default,
+// 0.0.0.0 when the user toggles Phone Connect in the Desktop panel). This
+// endpoint tells the UI what LAN URL a phone should open — and whether the
+// toggle is on at all (a restarted engine answers after it rebinds).
+app.get('/api/lan-info', (_req, res) => {
+  const enabled = (process.env.HOST || '') !== '127.0.0.1';
+  res.json({
+    enabled,
+    port: String(PORT),
+    urls: enabled ? lanUrlCandidates() : [],
+  });
+});
 
 // Health & readiness endpoint (senior-dev standard)
 app.get('/api/health', (_req, res) => {

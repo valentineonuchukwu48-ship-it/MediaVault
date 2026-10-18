@@ -38,6 +38,12 @@ const api = {
     ipcRenderer.on('startup:progress', handler);
     return () => ipcRenderer.removeListener('startup:progress', handler);
   },
+
+  /**
+   * Phone Connect: expose the running engine to the phone over the local
+   * Wi-Fi (enable) or bind back to loopback (disable). Restarts the engine.
+   */
+  setPhoneConnect: (enable) => ipcRenderer.invoke('phoneConnect:enable', !!enable),
 };
 
 contextBridge.exposeInMainWorld('desktop', api);

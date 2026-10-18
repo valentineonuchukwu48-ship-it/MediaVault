@@ -68,6 +68,66 @@ jobs:
           # Skip code signing on CI (unsigned builds). Configure CSC_* secrets to sign.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
+  # The Android companion app: a real downloadable .apk so mobile users can
+  # pair with their desktop engine over Wi-Fi. Built only from a tag (the
+  # electron-builder desktop jobs create the draft release this attaches to).
+  # continue-on-error keeps a Gradle hiccup from blocking the desktop release.
+  android:
+    name: Android APK (mobile companion)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Determine version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK
+        run: gradle -p android --no-daemon :app:assembleDebug -PmobileVersion=${{ steps.ver.outputs.version }}
+
+      - name: Rename APK
+        run: |
+          mv android/app/build/outputs/apk/debug/app-debug.apk \
+             "FacebookGrabContents-Mobile-${{ steps.ver.outputs.version }}.apk"
+
+      # electron-builder (windows job) drafts the release — wait for it, then
+      # attach the APK so users can download the mobile app straight from the
+      # release page.
+      - name: Attach APK to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          APK: FacebookGrabContents-Mobile-${{ steps.ver.outputs.version }}.apk
+        run: |
+          for i in $(seq 1 60); do
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release upload "$TAG" "$APK" --clobber
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "Release draft did not appear in time; APK left as workflow artifact."
+
+      - name: Upload APK artifact (fallback)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: facebookgrabcontents-mobile-apk
+          path: '*.apk'
+          if-no-files-found: ignore
+
   # electron-builder uploads the installers but leaves the release as a draft
   # with an empty description. This job fills in the title/notes and publishes.
   finalize:

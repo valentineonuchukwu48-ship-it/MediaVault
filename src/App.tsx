@@ -16,6 +16,7 @@ import { VideoMergeStudio } from './components/VideoMergeStudio';
 import { AiAssistantModal } from './components/AiAssistantModal';
 import { ChatPage } from './components/ChatPage';
 import { DesktopPanel } from './components/DesktopPanel';
+import { MobileInstallBar } from './components/MobileInstallBar';
 import { generateCombinedPdf, exportSinglePostPdf } from './utils/pdfGenerator';
 import { Layers } from 'lucide-react';
 
@@ -600,6 +601,8 @@ export default function App() {
 
       {/* Desktop-only controls (folders, browser cookies, updates) */}
       <DesktopPanel />
+      {/* Mobile: "install this app" prompt when opened on a phone */}
+      <MobileInstallBar />
     </div>
   );
 }

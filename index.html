@@ -11,6 +11,37 @@
     <meta property="og:site_name" content="FacebookGrabContents — ProsperChild Technology" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- Installable mobile app (PWA): Android/iPhone install over Wi-Fi -->
+    <meta name="theme-color" content="#0b1020" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="/fgc-icon.png" />
+    <link rel="apple-touch-icon" href="/fgc-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="FBGrabContents" />
+    <script>
+      // Install-anywhere plumbing:
+      //  1) keep Chrome's install prompt available to the UI
+      //  2) register the service worker (required for Android install)
+      (function() {
+        window.__fgcInstallEvent = null;
+        window.addEventListener('beforeinstallprompt', function(e) {
+          e.preventDefault();
+          window.__fgcInstallEvent = e;
+          window.dispatchEvent(new CustomEvent('fgc:installable'));
+        });
+        window.addEventListener('appinstalled', function() {
+          window.__fgcInstallEvent = null;
+          window.dispatchEvent(new CustomEvent('fgc:installed'));
+        });
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js').catch(function() {});
+          });
+        }
+      })();
+    </script>
     <script>
       (function() {
         try {

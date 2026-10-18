@@ -1,0 +1,26 @@
+{
+  "name": "FacebookGrabContents — Facebook Archiver & Video Downloader",
+  "short_name": "FBGrabContents",
+  "description": "Archive Facebook posts to tamper-evident PDFs and download or merge videos with sound — entirely on your own machine. By Valentine Onuchukwu, ProsperChild Technology, Nigeria.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/fgc-icon.png",
+      "sizes": "192x192 512x512 1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/fgc-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

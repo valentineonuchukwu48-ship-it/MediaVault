@@ -102,12 +102,16 @@ function getFreePort() {
 
 function engineEnv(port) {
   const settings = readSettings();
+  // Phone Connect (mobile app over Wi-Fi): when enabled the engine binds to
+  // all interfaces so a phone on the same network can open/ install it.
+  // Otherwise it stays loopback-only, invisible to the network.
+  const lan = !!settings.phoneConnect;
   const env = {
     ...process.env,
     NODE_ENV: 'production',
     ELECTRON_RUN_AS_NODE: '1',
     PORT: String(port),
-    HOST: '127.0.0.1',
+    HOST: lan ? '0.0.0.0' : '127.0.0.1',
     FGC_DESKTOP: '1',
     FGC_APP_ROOT: ROOTS.appRoot,
     FGC_DATA_DIR: DATA_DIR,
@@ -273,6 +277,50 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// ---------------------------------------------------------------------------
+// Phone Connect — restart the engine after the (loopback ↔ LAN) bind changes
+// ---------------------------------------------------------------------------
+async function restartEngine() {
+  // Reuse the same port so the QR code the phone already scanned stays valid.
+  let port = enginePort;
+  try {
+    port = await new Promise((resolve, reject) => {
+      const probe = net.createServer();
+      probe.unref();
+      probe.on('error', reject);
+      probe.listen(enginePort, '127.0.0.1', () => {
+        probe.close(() => resolve(enginePort));
+      });
+    });
+  } catch {
+    port = await getFreePort();
+  }
+
+  if (engine && !engine.killed) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 3000); // hard stop — never hang the UI
+      engine.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      try {
+        engine.kill();
+      } catch {}
+    });
+  }
+
+  engine = startEngine(port);
+  enginePort = port;
+  try {
+    await waitForHealth(port, 45000);
+  } catch (err) {
+    engine = null;
+    throw err;
+  }
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.loadURL(`http://127.0.0.1:${port}`);
+  return port;
+}
+
 function showAbout() {
   dialog.showMessageBox({
     type: 'info',
@@ -433,6 +481,28 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:checkForUpdates', () => checkForUpdates(true));
+
+  // Phone Connect: persist the toggle and restart the engine so the new bind
+  // applies immediately. Returns the port so the UI can render the QR code.
+  ipcMain.handle('phoneConnect:enable', async (_e, enable) => {
+    const wasEnabled = !!readSettings().phoneConnect;
+    writeSettings({ phoneConnect: !!enable });
+    // Loopback → LAN adds network exposure; LAN → loopback removes it. If the
+    // desired bind is already live there is nothing to restart.
+    if (!!enable === wasEnabled && engine) return { ok: true, enabled: !!enable, port: enginePort };
+    try {
+      const port = await restartEngine();
+      return { ok: true, enabled: !!enable, port };
+    } catch (err) {
+      dialog.showErrorBox(
+        `${APP_NAME} — restart failed`,
+        `Could not restart the background engine after changing Phone Connect:\n\n${
+          String(err && err.message ? err.message : err)
+        }\n\nTry restarting the app.`
+      );
+      return { ok: false, enabled: !!enable, error: String(err && err.message ? err.message : err) };
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------

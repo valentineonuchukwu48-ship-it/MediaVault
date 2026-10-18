@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2 } from 'lucide-react';
+import { Monitor, FolderOpen, Download, RefreshCw, Cookie, X, Cpu, Check, Coffee, Upload, Trash2, Smartphone, Wifi } from 'lucide-react';
 import {
   getDesktop,
   isDesktop,
@@ -7,7 +7,9 @@ import {
   DesktopSettings,
   EngineInfo,
   UpdateStatus,
+  PhoneConnectResult,
 } from '../desktop';
+import { generateQrDataUrl } from '../utils/qr';
 
 const SUPPORT_URL = 'https://flutterwave.com/donate/fysqhtbnfznn';
 
@@ -24,6 +26,25 @@ export const DesktopPanel: React.FC = () => {
   const [cookiesFile, setCookiesFile] = useState('');
   const [saved, setSaved] = useState(false);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
+  const [phoneConnect, setPhoneConnect] = useState(false);
+  const [lanUrls, setLanUrls] = useState<string[]>([]);
+  const [qrUrl, setQrUrl] = useState('');
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+
+  // Ask the engine what LAN URL it currently serves (empty while disabled).
+  const refreshLanInfo = async () => {
+    try {
+      const res = await fetch('/api/lan-info');
+      if (!res.ok) return;
+      const info = await res.json();
+      setPhoneConnect(!!info.enabled);
+      setLanUrls(Array.isArray(info.urls) ? info.urls : []);
+      setQrUrl(info.urls && info.urls[0] ? await generateQrDataUrl(info.urls[0]) : '');
+    } catch {
+      /* engine may be mid-restart; the toggle re-queries */
+    }
+  };
 
   useEffect(() => {
     const bridge = getDesktop();
@@ -38,6 +59,7 @@ export const DesktopPanel: React.FC = () => {
         setCookiesFile(s.cookiesFile || '');
       })
       .catch(() => {});
+    refreshLanInfo();
     const off = bridge.onUpdate((status) => setUpdate(status));
     return off;
   }, []);
@@ -84,6 +106,26 @@ export const DesktopPanel: React.FC = () => {
   };
 
   const cookieFileName = cookiesFile ? cookiesFile.split(/[\\/]/).pop() : '';
+
+  const togglePhoneConnect = async () => {
+    const bridge = getDesktop();
+    if (!bridge || phoneBusy) return;
+    setPhoneBusy(true);
+    setPhoneError('');
+    const next = !phoneConnect;
+    try {
+      const res: PhoneConnectResult = await bridge.setPhoneConnect(next);
+      if (res.ok) {
+        setPhoneConnect(next);
+        await refreshLanInfo();
+      } else {
+        setPhoneError(res.error || 'Could not restart the engine. Try restarting the app.');
+      }
+    } catch (err: any) {
+      setPhoneError(String(err?.message || err) || 'Failed to change Phone Connect.');
+    }
+    setPhoneBusy(false);
+  };
 
   return (
     <>
@@ -194,6 +236,78 @@ export const DesktopPanel: React.FC = () => {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Phone Connect — installable mobile app over Wi-Fi */}
+            <div className="space-y-2 border-t border-slate-800/80 pt-3">
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                <Smartphone className="w-3.5 h-3.5" /> Phone connect
+              </p>
+              <p className="text-[10.5px] leading-relaxed text-slate-500">
+                Mobile app mode: share this app over your Wi-Fi so the same
+                FacebookGrabContents experience opens (and installs) on Android and iPhone.
+              </p>
+              <button
+                onClick={togglePhoneConnect}
+                disabled={phoneBusy}
+                className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-white text-xs font-semibold transition-colors disabled:opacity-60 ${
+                  phoneConnect
+                    ? 'bg-red-600/80 hover:bg-red-700'
+                    : 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500'
+                }`}
+              >
+                {phoneConnect ? (
+                  <>
+                    <Smartphone className="w-3.5 h-3.5" /> {phoneBusy ? 'Disconnecting…' : 'Stop sharing to phones'}
+                  </>
+                ) : phoneBusy ? (
+                  'Starting…'
+                ) : (
+                  <>
+                    <Wifi className="w-3.5 h-3.5" /> Share to my phone
+                  </>
+                )}
+              </button>
+
+              {phoneError && (
+                <p className="text-[10.5px] text-rose-300 leading-relaxed">{phoneError}</p>
+              )}
+
+              {phoneConnect && (
+                <div className="space-y-2 rounded-xl border border-slate-700/60 bg-slate-800/60 p-3">
+                  {qrUrl ? (
+                    <div className="flex justify-center">
+                      <img src={qrUrl} alt="Scan to open FacebookGrabContents on your phone" className="rounded-lg border border-slate-700" width={176} height={176} />
+                    </div>
+                  ) : (
+                    <p className="text-[10.5px] text-amber-300 text-center leading-relaxed">
+                      No LAN address found. Is this PC connected to Wi-Fi / Ethernet?
+                    </p>
+                  )}
+                  {lanUrls.length > 0 && (
+                    <p className="text-center text-[11px] font-mono text-cyan-300 break-all">
+                      {lanUrls[0].replace(/^https?:\/\//, '')}
+                    </p>
+                  )}
+                  <p className="text-[10.5px] leading-relaxed text-slate-400">
+                    1. Keep this app running and connect your phone to{' '}
+                    <span className="font-semibold text-slate-300">the same Wi-Fi</span>.
+                  </p>
+                  <p className="text-[10.5px] leading-relaxed text-slate-400">
+                    2. Point your phone camera at the code — the app opens in your
+                    phone's browser.
+                  </p>
+                  <p className="text-[10.5px] leading-relaxed text-slate-400">
+                    3. To install it like a real app: browser menu (⋮ on Android, Share→Add on
+                    iPhone) → <span className="font-semibold text-slate-300">Add to Home screen</span>.
+                  </p>
+                  <p className="text-[10px] leading-relaxed text-slate-600">
+                    Windows may ask to allow the app through the firewall the first
+                    time — choose <span className="text-slate-400">Allow on private networks</span>.
+                    Only devices on your own Wi-Fi can reach this address.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Engine + updates */}

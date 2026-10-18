@@ -49,6 +49,22 @@ Use **Desktop → Data folder / Downloads** to open them, or **File** in the men
 
 ---
 
+## 📱 Mobile app (Android & iPhone)
+
+Phone Connect puts the same full experience on your phone over your Wi-Fi. The PC keeps doing the heavy lifting (yt-dlp, ffmpeg, vault, AI), so nothing is missing on mobile:
+
+1. Open the desktop app on your PC → **Desktop panel (bottom-right) → Phone Connect → Share to my phone**.
+2. Scan the QR code with your phone camera (phone and PC on the **same Wi-Fi**). The full app opens on the phone.
+3. Install it like a real app:
+   - **Android (Chrome):** menu (⋮) → **Add to Home screen** / **Install app** — served as an installable PWA (manifest + service worker).
+   - **iPhone (Safari):** Share → **Add to Home Screen**.
+4. Or grab the native **Android APK** from the [Releases](../../releases) page (`FacebookGrabContents-Mobile-<version>.apk`):
+   install, open, type the address from **Desktop → Phone Connect** (e.g. `192.168.1.5:3000`) once — the app remembers it. Downloads land in your phone's Downloads folder.
+
+> The engine only listens on your LAN while **Phone Connect** is on (the toggle rebinds the engine live). It stays loopback-only otherwise.
+
+---
+
 ## 🧱 Architecture
 
 ```
@@ -70,6 +86,7 @@ The engine runs as an isolated child process, so a heavy merge can never freeze 
 | Engine | Node.js, Express, TypeScript (bundled with esbuild) |
 | Media | `FFmpeg` / `FFprobe`, `yt-dlp` |
 | Vault storage | Append-only NDJSON SHA-256 hash chain |
+| Mobile | Installable PWA over LAN + Android WebView companion (CI-built APK) |
 
 ---
 

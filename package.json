@@ -2,7 +2,7 @@
   "name": "facebookgrabcontents",
   "productName": "FacebookGrabContents",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Archive Facebook posts to tamper-evident PDFs and download or merge videos with sound — entirely on your own machine.",
   "author": {
     "name": "Valentine Onuchukwu",
