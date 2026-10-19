@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace 'com.valentineonuchukwu.facebookgrabcontents.mobile'
+    namespace 'com.valentineonuchukwu.mediavault.mobile'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.valentineonuchukwu.facebookgrabcontents.mobile"
+        applicationId "com.valentineonuchukwu.mediavault.mobile"
         minSdk 24
         // Compile/target stay at 34: the app has no Play Store target today,
         // and 34-target apps run fine on every current Android version.

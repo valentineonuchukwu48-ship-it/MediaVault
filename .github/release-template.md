@@ -1,4 +1,4 @@
-**FacebookGrabContents** — archive Facebook posts to tamper-evident PDFs, and download / merge videos with sound. Runs entirely on your own machine: no account, no server, your data never leaves your computer.
+**mediavault** — archive Facebook posts to tamper-evident PDFs, and download / merge videos with sound. Runs entirely on your own machine: no account, no server, your data never leaves your computer.
 
 Created by **Valentine Onuchukwu** — ProsperChild Technology, Nigeria.
 
@@ -8,11 +8,11 @@ Created by **Valentine Onuchukwu** — ProsperChild Technology, Nigeria.
 
 | Platform | File |
 |---|---|
-| **Windows (installer)** | `FacebookGrabContents-{{VERSION}}-x64-setup.exe` |
-| **Windows (portable, no install)** | `FacebookGrabContents-{{VERSION}}-portable.exe` |
-| **macOS (Apple Silicon)** | `FacebookGrabContents-{{VERSION}}-arm64.dmg` |
-| **Linux (AppImage)** | `FacebookGrabContents-{{VERSION}}.AppImage` |
-| **Linux (Debian/Ubuntu)** | `facebookgrabcontents_{{VERSION}}_amd64.deb` |
+| **Windows (installer)** | `mediavault-{{VERSION}}-x64-setup.exe` |
+| **Windows (portable, no install)** | `mediavault-{{VERSION}}-portable.exe` |
+| **macOS (Apple Silicon)** | `mediavault-{{VERSION}}-arm64.dmg` |
+| **Linux (AppImage)** | `mediavault-{{VERSION}}.AppImage` |
+| **Linux (Debian/Ubuntu)** | `mediavault_{{VERSION}}_amd64.deb` |
 
 ### Windows notes
 - SmartScreen may warn on first run because the app is **unsigned** (a code-signing certificate costs money). Click **More info → Run anyway**.
@@ -63,7 +63,7 @@ rate-limited to 8/minute. Your engine on the Wi-Fi stays yours alone.
 
 ## 📖 Full documentation
 
-New: **[docs/DOCUMENTATION.md](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/blob/main/docs/DOCUMENTATION.md)** — the complete manual: how every feature works (vault hash math, video
+New: **[docs/DOCUMENTATION.md](https://github.com/valentineonuchukwu48-ship-it/mediavault/blob/main/docs/DOCUMENTATION.md)** — the complete manual: how every feature works (vault hash math, video
 pipeline, radar, verifier), all API routes, environment variables, troubleshooting and FAQ.
 
 ## 🔐 Zero-trust evidence verifier
@@ -80,12 +80,12 @@ Phone Connect puts the **same full app on your phone** over your Wi-Fi — the P
 
 1. Open the desktop app on your PC → **Desktop panel (bottom-right) → Phone Connect → Share to my phone**.
 2. Scan the QR code with your phone camera (phone and PC on the **same Wi-Fi**).
-3. The full FacebookGrabContents opens on your phone. Install it as an app:
+3. The full mediavault opens on your phone. Install it as an app:
    - **Android (Chrome):** menu (⋮) → **Add to Home screen** / **Install app**
    - **iPhone (Safari):** Share → **Add to Home Screen**
 
 ### Android APK (native companion)
-`FacebookGrabContents-Mobile-{{VERSION}}.apk` — installs with its own pairing screen:
+`mediavault-Mobile-{{VERSION}}.apk` — installs with its own pairing screen:
 1. Turn on **Phone Connect** in the desktop app.
 2. Open the APK, type the address shown in the panel (e.g. `192.168.1.5:3000`).
 3. Type the **6-digit pairing code** shown next to the QR code — the pairing screen appears in the app.

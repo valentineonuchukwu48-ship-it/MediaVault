@@ -11,7 +11,7 @@
  */
 import fs from 'node:fs';
 
-const REPO = 'valentineonuchukwu48-ship-it/facebookgrabcontents';
+const REPO = 'valentineonuchukwu48-ship-it/mediavault';
 const TEMPLATE = new URL('../.github/release-template.md', import.meta.url);
 
 const token = process.env.GITHUB_TOKEN;
@@ -29,14 +29,14 @@ if (!/^v\d/.test(tag)) {
 
 const version = tag.replace(/^v/, '');
 const body = fs.readFileSync(TEMPLATE, 'utf8').replaceAll('{{VERSION}}', version);
-const name = `${tag} — FacebookGrabContents`;
+const name = `${tag} — mediavault`;
 
 const api = (path, opts = {}) =>
   fetch(`https://api.github.com/repos/${REPO}${path}`, {
     ...opts,
     headers: {
       Authorization: `Bearer ${token}`,
-      'User-Agent': 'facebookgrabcontents-release',
+      'User-Agent': 'mediavault-release',
       Accept: 'application/vnd.github+json',
       'Content-Type': 'application/json',
       ...(opts.headers || {}),

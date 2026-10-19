@@ -11,5 +11,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "FacebookGrabContentsMobile"
+rootProject.name = "MediaVaultMobile"
 include ':app'

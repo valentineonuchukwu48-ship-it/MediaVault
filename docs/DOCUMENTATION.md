@@ -1,4 +1,4 @@
-# FacebookGrabContents — Full Documentation
+# mediavault — Full Documentation
 
 **Archive Facebook posts as evidence-grade PDFs, download/merge Facebook videos with sound, prove nothing got tampered with — and watch the posts you care about. Runs entirely on your own machine.**
 
@@ -6,7 +6,7 @@
 - **Author:** Valentine Onuchukwu — ProsperChild Technology, Nigeria
 - **License:** MIT — free forever
 - **Support the project:** https://flutterwave.com/donate/fysqhtbnfznn
-- **Mobile APK / desktop installers:** https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/releases
+- **Mobile APK / desktop installers:** https://github.com/valentineonuchukwu48-ship-it/mediavault/releases
 
 ---
 
@@ -36,7 +36,7 @@
 
 ## 1. What the app does
 
-FacebookGrabContents is a **local-first archival workbench** for Facebook content:
+mediavault is a **local-first archival workbench** for Facebook content:
 
 | Capability | One-liner |
 |---|---|
@@ -94,10 +94,10 @@ Why a separate engine? A heavy 200 MB video merge can never freeze or crash the 
 
 ### Desktop (Windows / macOS / Linux)
 
-1. Download from the [Releases page](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/releases):
-   - `FacebookGrabContents-<version>-x64-setup.exe` (installer) or `-portable.exe` (no install)
-   - `FacebookGrabContents-<version>-arm64.dmg` (mac Apple Silicon)
-   - `FacebookGrabContents-<version>.AppImage` or `.deb` (Linux)
+1. Download from the [Releases page](https://github.com/valentineonuchukwu48-ship-it/mediavault/releases):
+   - `mediavault-<version>-x64-setup.exe` (installer) or `-portable.exe` (no install)
+   - `mediavault-<version>-arm64.dmg` (mac Apple Silicon)
+   - `mediavault-<version>.AppImage` or `.deb` (Linux)
 2. Windows SmartScreen may warn (unsigned build) → **More info → Run anyway**. macOS: right-click → **Open**.
 3. Everything is bundled — **no** Python, no ffmpeg installs, no Node required.
 
@@ -119,7 +119,7 @@ Already installed an older version? The app **updates itself**:
 2. A new version downloads in the background; the app asks *"Update is ready — restart now?"*.
 3. One click installs. All data (vault contents, watch list, time-stamp receipts, cookies) sits outside the app itself, so nothing is lost.
 
-Portable (non-installer) builds don't self-update — download the new portable from [Releases](https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents/releases) instead.
+Portable (non-installer) builds don't self-update — download the new portable from [Releases](https://github.com/valentineonuchukwu48-ship-it/mediavault/releases) instead.
 
 ---
 
@@ -329,7 +329,7 @@ In other words: the cafés on your Wi-Fi see a clean "Pair this device" wall; yo
 Desktop (packaged) — all inside your user profile:
 
 ```
-%APPDATA%\FacebookGrabContents\data\
+%APPDATA%\mediavault\data\
 ├── vault\
 │   ├── chain.ndjson        sealed posts — the append-only hash chain
 │   ├── stamps.json         public time-anchor receipts (.ots preimages)
@@ -419,8 +419,8 @@ Error shape is deliberate: `{ error: string, code?: ExtractionFailureCode, hint?
 ### From source
 
 ```bash
-git clone https://github.com/valentineonuchukwu48-ship-it/facebookgrabcontents.git
-cd facebookgrabcontents
+git clone https://github.com/valentineonuchukwu48-ship-it/mediavault.git
+cd mediavault
 npm install
 npm run fetch:binaries        # yt-dlp / ffmpeg / ffprobe for YOUR OS → bin/
 npm run desktop               # frontend + engine bundle + Electron launch
@@ -440,7 +440,7 @@ npm run dev                   # engine + browser UI (hot reload)
 Push a **tag** (`git tag v1.3.0 && git push origin v1.3.0`) and GitHub Actions:
 
 1. builds installers on **windows-latest, macos-latest, ubuntu-latest** (`--publish always` → draft release),
-2. builds the **Android companion APK** (`android/` Gradle project; JDK 17 + Gradle 8.9 on `ubuntu-latest`) and attaches `FacebookGrabContents-Mobile-<version>.apk`,
+2. builds the **Android companion APK** (`android/` Gradle project; JDK 17 + Gradle 8.9 on `ubuntu-latest`) and attaches `mediavault-Mobile-<version>.apk`,
 3. finalises the release notes from `.github/release-template.md` and publishes it.
 
 CI also runs on every push to `main` and PR in `ci.yml` (lint → tests → build), so the `main` branch is kept always-buildable.
@@ -479,4 +479,4 @@ CI also runs on every push to `main` and PR in `ci.yml` (lint → tests → buil
 
 ---
 
-*FacebookGrabContents — ProsperChild Technology, Nigeria. Built by Valentine Onuchukwu (valentineonuchukwu@gmail.com). Free and MIT. If it saves you time: [buy me a coffee](https://flutterwave.com/donate/fysqhtbnfznn).*
+*mediavault — ProsperChild Technology, Nigeria. Built by Valentine Onuchukwu (valentineonuchukwu@gmail.com). Free and MIT. If it saves you time: [buy me a coffee](https://flutterwave.com/donate/fysqhtbnfznn).*

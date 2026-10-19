@@ -1,5 +1,5 @@
 /**
- * Central path + binary resolution for FacebookGrabContents.
+ * Central path + binary resolution for mediavault.
  *
  * The app runs in three environments, and every one of them needs *writable*
  * storage for the vault, uploads, generated audio and merged videos:

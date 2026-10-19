@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- FacebookGrabContents Mobile — companion for the desktop engine.
+<!-- mediavault Mobile — companion for the desktop engine.
 
      The engine (yt-dlp/ffmpeg) runs on the user's PC; this app is the shell
      that pairs with it over the local Wi-Fi. All app traffic stays on the
@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
-        android:label="FacebookGrabContents"
+        android:label="mediavault"
         android:icon="@android:drawable/sym_def_app_icon"
         android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.NoActionBar">

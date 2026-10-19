@@ -592,7 +592,7 @@ export default function App() {
       {/* Author credit */}
       <footer className="no-print mt-10 mb-4 text-center text-[11px] leading-relaxed text-slate-500">
         <p className="font-semibold tracking-wide text-slate-400">
-          FacebookGrabContents · by Valentine Onuchukwu
+          mediavault · by Valentine Onuchukwu
         </p>
         <p>
           ProsperChild Technology — Nigeria ·{' '}

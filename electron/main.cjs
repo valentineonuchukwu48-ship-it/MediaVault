@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * FacebookGrabContents — desktop shell (Electron main process).
+ * mediavault — desktop shell (Electron main process).
  *
  * Responsibilities
  *  - show a branded splash with a live progress bar while the engine boots
@@ -20,7 +20,7 @@ const { spawn } = require('child_process');
 
 const IS_DEV = !app.isPackaged;
 const PROJECT_ROOT = path.join(__dirname, '..');
-const APP_NAME = 'FacebookGrabContents';
+const APP_NAME = 'mediavault';
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -49,7 +49,14 @@ function resolveRoots() {
 }
 
 const ROOTS = resolveRoots();
-const DATA_DIR = path.join(app.getPath('userData'), 'data');
+// MediaVault v2.0 renamed the app folder, so keep using the previous data
+// location (%APPDATA%\FacebookGrabContents\data) whenever the new one has not
+// been created yet — no vault, downloads or cookies are lost.
+let DATA_DIR = path.join(app.getPath('userData'), 'data');
+const LEGACY_DATA_DIR = path.join(app.getPath('appData'), 'FacebookGrabContents', 'data');
+if (!fs.existsSync(DATA_DIR) && fs.existsSync(LEGACY_DATA_DIR)) {
+  DATA_DIR = LEGACY_DATA_DIR;
+}
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 function ensureDir(dir) {

@@ -100,7 +100,7 @@ jobs:
       - name: Rename APK
         run: |
           mv android/app/build/outputs/apk/debug/app-debug.apk \
-             "FacebookGrabContents-Mobile-${{ steps.ver.outputs.version }}.apk"
+             "mediavault-Mobile-${{ steps.ver.outputs.version }}.apk"
 
       # electron-builder (windows job) drafts the release — wait for it, then
       # attach the APK so users can download the mobile app straight from the
@@ -109,7 +109,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-          APK: FacebookGrabContents-Mobile-${{ steps.ver.outputs.version }}.apk
+          APK: mediavault-Mobile-${{ steps.ver.outputs.version }}.apk
         run: |
           for i in $(seq 1 60); do
             if gh release view "$TAG" >/dev/null 2>&1; then
@@ -124,7 +124,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: facebookgrabcontents-mobile-apk
+          name: mediavault-mobile-apk
           path: '*.apk'
           if-no-files-found: ignore
 

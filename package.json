@@ -1,9 +1,9 @@
 {
-  "name": "facebookgrabcontents",
-  "productName": "FacebookGrabContents",
+  "name": "mediavault",
+  "productName": "MediaVault",
   "private": true,
-  "version": "1.4.1",
-  "description": "Archive Facebook posts to tamper-evident PDFs and download or merge videos with sound — entirely on your own machine.",
+  "version": "2.0.0",
+  "description": "Your private media vault: archive Facebook posts to tamper-evident PDFs, download and merge videos — everything stays on your own machine.",
   "author": {
     "name": "Valentine Onuchukwu",
     "email": "valentineonuchukwu@gmail.com",

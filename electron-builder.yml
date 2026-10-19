@@ -1,10 +1,10 @@
-# electron-builder configuration for FacebookGrabContents.
+# electron-builder configuration for mediavault.
 #
 # asar is intentionally DISABLED: the Express engine runs as a separate plain
 # Node child process, and plain Node cannot read files from inside an asar
 # archive. Shipping real files keeps dev and production behaviour identical.
-appId: com.valentineonuchukwu.facebookgrabcontents
-productName: FacebookGrabContents
+appId: com.valentineonuchukwu.mediavault
+productName: mediavault
 copyright: Copyright © 2026 Valentine Onuchukwu — ProsperChild Technology, Nigeria
 
 directories:
@@ -37,7 +37,7 @@ win:
   icon: build-resources/icon.png
   signtoolOptions:
     publisherName: ProsperChild Technology, Nigeria
-  legalTrademarks: FacebookGrabContents — Valentine Onuchukwu, ProsperChild Technology, Nigeria
+  legalTrademarks: mediavault — Valentine Onuchukwu, ProsperChild Technology, Nigeria
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
 nsis:
@@ -46,8 +46,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: FacebookGrabContents
-  uninstallDisplayName: FacebookGrabContents — ProsperChild Technology
+  shortcutName: mediavault
+  uninstallDisplayName: mediavault — ProsperChild Technology
   runAfterFinish: true
   deleteAppDataOnUninstall: false
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
@@ -68,4 +68,4 @@ linux:
 publish:
   provider: github
   owner: valentineonuchukwu48-ship-it
-  repo: facebookgrabcontents
+  repo: mediavault

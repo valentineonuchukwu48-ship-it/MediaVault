@@ -35,7 +35,7 @@ interface VerifierCorpus {
 
 function canonicalCorpus(): string {
   const corpus: VerifierCorpus = {
-    app: 'FacebookGrabContents — ProsperChild Technology, Nigeria',
+    app: 'mediavault — ProsperChild Technology, Nigeria',
     formatVersion: FORMAT_VERSION,
     genesis: GENESIS,
     exportedAt: new Date().toISOString(),
@@ -57,7 +57,7 @@ export const VERIFIER_HTML = [
   '<html lang="en">',
   '<head>',
   '<meta charset="utf-8">',
-  '<title>Zero-Trust Verifier — FacebookGrabContents Evidence Vault</title>',
+  '<title>Zero-Trust Verifier — mediavault Evidence Vault</title>',
   '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
   '<style>',
   ':root{--bg:#0b1020;--panel:#111a2e;--line:#223052;--text:#f1f5f9;--muted:#94a3b8;--ok:#34d399;--bad:#fb7185;--warn:#fbbf24;--accent:#6366f1}',
@@ -89,7 +89,7 @@ export const VERIFIER_HTML = [
   '<body>',
   '<div class="wrap">',
   '<h1><span class="shield">&#128737;</span> Zero-Trust Verifier</h1>',
-  '<div class="sub">FacebookGrabContents Evidence Vault — independent re-verification in your browser. No network calls, no installation, no trust in the app that produced this file.</div>',
+  '<div class="sub">mediavault Evidence Vault — independent re-verification in your browser. No network calls, no installation, no trust in the app that produced this file.</div>',
   '<div class="verdict" id="verdict">Verifying&hellip;<span class="meta" id="verdict-meta"></span></div>',
   '<div class="drop" id="drop">Or drop / pick another <b>chain.ndjson</b> to verify it instead &mdash; drop the file here or click to choose.</div>',
   '<input id="chainFile" type="file" accept="text/plain,.ndjson,.txt" style="display:none">',
@@ -103,7 +103,7 @@ export const VERIFIER_HTML = [
   '(3) the <b>chain</b>: every entry must declare the previous entry\u2019s hash as its previousHash.',
   'Any single byte of tampering anywhere in history breaks every check after it and is displayed above.',
   '</div>',
-  '<div class="footer">FacebookGrabContents &mdash; ProsperChild Technology, Nigeria &middot; Valentine Onuchukwu &middot; valentineonuchukwu@gmail.com</div>',
+  '<div class="footer">mediavault &mdash; ProsperChild Technology, Nigeria &middot; Valentine Onuchukwu &middot; valentineonuchukwu@gmail.com</div>',
   '</div>',
   '<script id="fgc-corpus">window.FGC_CORPUS=__FGC_CORPUS__;</script>',
   '<script id="fgc-verifier-js">',

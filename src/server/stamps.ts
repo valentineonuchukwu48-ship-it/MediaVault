@@ -255,7 +255,7 @@ export function preimageOf(hash: string): Buffer | null {
 
 function howToVerifyText(): string {
   return [
-    'HOW TO VERIFY THESE TIMESTAMPS (no trust in FacebookGrabContents needed)',
+    'HOW TO VERIFY THESE TIMESTAMPS (no trust in mediavault needed)',
     '========================================================================',
     '',
     'Every pair of files here is one sealed archive entry:',

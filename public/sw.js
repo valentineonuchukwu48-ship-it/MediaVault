@@ -1,5 +1,5 @@
 /**
- * FacebookGrabContents service worker.
+ * mediavault service worker.
  *
  * Purpose: make the same engine-served UI installable as a real app on
  * Android (Chrome "Install" / Add to Home screen). The engine on the PC does
