@@ -142,15 +142,34 @@ function setProgress(pct, label) {
 }
 
 function startEngine(port) {
+  // Engine diagnostics go to DATA_DIR/engine.log so boot failures (which are
+  // invisible in a packaged app) always leave evidence on the user's disk.
+  let logStream = null;
+  try {
+    const logPath = path.join(DATA_DIR, 'engine.log');
+    try {
+      if (fs.existsSync(logPath) && fs.statSync(logPath).size > 2 * 1024 * 1024) fs.unlinkSync(logPath);
+    } catch { /* best effort rotation */ }
+    logStream = fs.createWriteStream(logPath, { flags: 'a' });
+    logStream.write(`\n=== engine boot ${new Date().toISOString()} (port ${port}) ===\n`);
+  } catch { /* logging is best-effort */ }
+
   const child = spawn(process.execPath, [ROOTS.serverEntry], {
     cwd: ROOTS.appRoot,
     env: engineEnv(port),
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
   });
-  child.stdout.on('data', (d) => process.stdout.write(`[engine] ${d}`));
-  child.stderr.on('data', (d) => process.stderr.write(`[engine] ${d}`));
+  child.stdout.on('data', (d) => {
+    process.stdout.write(`[engine] ${d}`);
+    if (logStream) logStream.write(d);
+  });
+  child.stderr.on('data', (d) => {
+    process.stderr.write(`[engine] ${d}`);
+    if (logStream) logStream.write(d);
+  });
   child.on('exit', (code) => {
+    if (logStream) { try { logStream.end(`\n=== engine exit code ${code} ===\n`); } catch { /* fine */ } logStream = null; }
     engine = null;
     if (!quitting && !expectedEngineExit && code !== 0) {
       dialog.showErrorBox(
@@ -422,12 +441,27 @@ async function boot() {
 
   setProgress(48, 'Warming up media tools…');
   try {
-    await waitForHealth(enginePort, 45000);
-  } catch (err) {
-    setProgress(100, 'Failed');
-    dialog.showErrorBox(`${APP_NAME} — startup failed`, String(err && err.message ? err.message : err));
-    app.quit();
-    return;
+    await waitForHealth(enginePort, 60000);
+  } catch {
+    // One self-heal retry. A first child can be wedged by a rebuild that
+    // replaced files under it, or by antivirus scanning the bundle mid-boot.
+    // Kill it, give the exit event time to fire silently, start fresh.
+    expectedEngineExit = true;
+    try { engine && engine.kill(); } catch { /* already gone */ }
+    engine = null;
+    setTimeout(() => { expectedEngineExit = false; }, 1500);
+
+    enginePort = await getFreePort();
+    setProgress(40, 'Retrying engine start…');
+    engine = startEngine(enginePort);
+    try {
+      await waitForHealth(enginePort, 60000);
+    } catch (err2) {
+      setProgress(100, 'Failed');
+      dialog.showErrorBox(`${APP_NAME} — startup failed`, String(err2 && err2.message ? err2.message : err2));
+      app.quit();
+      return;
+    }
   }
 
   setProgress(86, 'Loading interface…');
