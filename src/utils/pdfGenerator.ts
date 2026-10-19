@@ -172,6 +172,11 @@ export async function generateCombinedPdf(
   const totalSteps = (settings.includeCoverPage ? 1 : 0) + posts.length;
   let currentStep = 0;
 
+  // A 1-post archive doesn't deserve a full cover page: the TOC would hold a
+  // single row and the rest of the page is dead paper. In that case keep the
+  // masthead (brand, title, meta box) and flow the post directly beneath it.
+  const flowFirstOnCover = settings.includeCoverPage && posts.length === 1;
+
   // 1. Optional Cover Sheet Page
   if (settings.includeCoverPage) {
     currentStep++;
@@ -222,11 +227,12 @@ export async function generateCombinedPdf(
     pdf.text(new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), 75, 66);
     pdf.text(`${posts.length} entries`, 140, 66);
 
-    // Table of contents
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(11);
-    pdf.setTextColor(15, 23, 42);
-    pdf.text('TABLE OF CONTENTS', 15, 88);
+    // Table of contents — only meaningful when there are several entries.
+    if (!flowFirstOnCover) {
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(15, 23, 42);
+      pdf.text('TABLE OF CONTENTS', 15, 88);
 
     let tocY = 96;
     for (let idx = 0; idx < posts.length; idx++) {
@@ -256,12 +262,16 @@ export async function generateCombinedPdf(
 
       tocY += 13;
     }
+    }
 
-    // Cover footer
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8);
-    pdf.setTextColor(148, 163, 184);
-    pdf.text('ARCHIVE ENGINE: FacePDF Archiver · Digital Verification', 15, pageHeight - 12);
+    // Cover footer — on a flowed single-post page the post's own verification
+    // strip sits at the bottom, so skip this line to avoid a collision.
+    if (!flowFirstOnCover) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text('ARCHIVE ENGINE: Ultimate Media Vault · Zero-Proof Archival', 15, pageHeight - 12);
+    }
   }
 
   // 2. Render each Facebook Post
@@ -275,12 +285,16 @@ export async function generateCombinedPdf(
       message: `Rendering Post ${i + 1} of ${posts.length} (${post.authorName})...`,
     });
 
-    if (currentStep > 1) {
-      pdf.addPage(settings.pageFormat === 'auto_card' ? 'a4' : settings.pageFormat, orientation);
-    }
-
     const marginX = 15;
     let currentY = 18;
+
+    if (i === 0 && flowFirstOnCover) {
+      // Single-post dossier: continue directly below the masthead meta box.
+      currentY = 86;
+    } else if (currentStep > 1) {
+      pdf.addPage(settings.pageFormat === 'auto_card' ? 'a4' : settings.pageFormat, orientation);
+      currentY = 18;
+    }
     const contentWidth = pageWidth - marginX * 2;
 
     // Optional top watermark strip
