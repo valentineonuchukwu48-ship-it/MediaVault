@@ -57,6 +57,7 @@ import {
   startStampsLoop,
 } from './src/server/stamps';
 import { buildVaultCsv } from './src/server/vaultExport';
+import { createMediaRouter } from './src/server/mediaOrganizer';
 
 dotenv.config();
 
@@ -267,7 +268,7 @@ function renderPairingPage(error?: string): string {
     : '';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pair this device — mediavault</title>
+<title>Pair this device — Ultimate Media Vault</title>
 <style>body{margin:0;background:#0b1020;color:#f1f5f9;font:14px/1.5 "Plus Jakarta Sans",-apple-system,"Segoe UI",Roboto,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:20px}
 .card{background:#111a2e;border:1px solid #223052;border-radius:16px;padding:32px 26px;max-width:420px;width:100%}
 h1{font-size:18px;margin:0 0 6px}.sub{color:#94a3b8;font-size:12.5px;margin-bottom:20px}
@@ -278,7 +279,7 @@ button{width:100%;margin-top:14px;padding:12px;border:0;border-radius:10px;backg
 <p class="sub">Type the 6-digit pairing code shown on your computer in<br><b>Desktop &rarr; Phone Connect</b>.</p>
 <form method="post" action="/pair"><input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="off" autofocus required>
 <button type="submit">Pair &amp; open the app</button>${errHtml}</form>
-<p class="foot">mediavault &mdash; ProsperChild Technology, Nigeria</p></div></body></html>`;
+<p class="foot">Ultimate Media Vault &mdash; ProsperChild Technology, Nigeria</p></div></body></html>`;
 }
 
 app.use((req, res, next) => {
@@ -1362,6 +1363,8 @@ app.get('/api/radar/stream', (req, res) => {
 });
 
 // Health & readiness endpoint (senior-dev standard)
+app.use('/api/media', createMediaRouter({ dataDir: DATA_DIR }));
+
 app.get('/api/health', (_req, res) => {
   const chain = verifyChain();
   res.json({

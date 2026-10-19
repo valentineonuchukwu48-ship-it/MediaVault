@@ -472,7 +472,7 @@ export const DesktopPanel: React.FC = () => {
               </p>
               <p className="text-[10.5px] leading-relaxed text-slate-500">
                 Mobile app mode: share this app over your Wi-Fi so the same
-                mediavault experience opens (and installs) on Android and iPhone.
+                Ultimate Media Vault experience opens (and installs) on Android and iPhone.
               </p>
               <button
                 onClick={togglePhoneConnect}
@@ -504,7 +504,7 @@ export const DesktopPanel: React.FC = () => {
                 <div className="space-y-2 rounded-xl border border-slate-700/60 bg-slate-800/60 p-3">
                   {qrUrl ? (
                     <div className="flex justify-center">
-                      <img src={qrUrl} alt="Scan to open mediavault on your phone" className="rounded-lg border border-slate-700" width={176} height={176} />
+                      <img src={qrUrl} alt="Scan to open Ultimate Media Vault on your phone" className="rounded-lg border border-slate-700" width={176} height={176} />
                     </div>
                   ) : (
                     <p className="text-[10.5px] text-amber-300 text-center leading-relaxed">
@@ -551,7 +551,7 @@ export const DesktopPanel: React.FC = () => {
                 </p>
               )}
               <p className="text-[10px] text-slate-600 leading-relaxed">
-                mediavault — by Valentine Onuchukwu
+                Ultimate Media Vault — by Valentine Onuchukwu
                 <br />
                 ProsperChild Technology, Nigeria
                 <br />

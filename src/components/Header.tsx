@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, FileText, Video, Film, Zap, Sparkles, Key, MessageSquare } from 'lucide-react';
+import { Download, FileText, Video, Film, Zap, Sparkles, Key, MessageSquare, Images } from 'lucide-react';
 
 interface HeaderProps {
   totalPosts: number;
@@ -8,8 +8,8 @@ interface HeaderProps {
   isExporting: boolean;
   activeTab: 'preview' | 'queue' | 'settings';
   setActiveTab: (tab: 'preview' | 'queue' | 'settings') => void;
-  appMode: 'video_studio' | 'pdf_dossier' | 'ai_chat';
-  setAppMode: (mode: 'video_studio' | 'pdf_dossier' | 'ai_chat') => void;
+  appMode: 'media_vault' | 'video_studio' | 'pdf_dossier' | 'ai_chat';
+  setAppMode: (mode: 'media_vault' | 'video_studio' | 'pdf_dossier' | 'ai_chat') => void;
   onOpenAiStudio?: () => void;
 }
 
@@ -45,6 +45,18 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Studio Switcher Pill — horizontally scrollable when too wide for a phone */}
         <div className="flex items-center max-w-full overflow-x-auto no-scrollbar p-1 bg-slate-800 rounded-xl border border-slate-700/80 text-xs font-semibold">
           <div className="flex items-center gap-0 shrink-0">
+          <button
+            onClick={() => setAppMode('media_vault')}
+            className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+              appMode === 'media_vault'
+                ? 'bg-cyan-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Images className="w-3.5 h-3.5 text-cyan-300" />
+            <span>Media Vault</span>
+          </button>
+
           <button
             onClick={() => setAppMode('video_studio')}
             className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${

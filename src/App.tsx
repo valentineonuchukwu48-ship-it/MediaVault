@@ -17,6 +17,7 @@ import { AiAssistantModal } from './components/AiAssistantModal';
 import { ChatPage } from './components/ChatPage';
 import { DesktopPanel } from './components/DesktopPanel';
 import { MobileInstallBar } from './components/MobileInstallBar';
+import { MediaOrganizer } from './components/MediaOrganizer';
 import { DeletionRadar } from './components/DeletionRadar';
 import { generateCombinedPdf, exportSinglePostPdf } from './utils/pdfGenerator';
 import { Layers } from 'lucide-react';
@@ -109,7 +110,7 @@ export default function App() {
   const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'preview' | 'queue' | 'settings'>('preview');
-  const [appMode, setAppMode] = useState<'video_studio' | 'pdf_dossier' | 'ai_chat'>('video_studio');
+  const [appMode, setAppMode] = useState<'media_vault' | 'video_studio' | 'pdf_dossier' | 'ai_chat'>('video_studio');
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
 
   // Reference to export combined PDF
@@ -453,13 +454,20 @@ export default function App() {
         onOpenAiStudio={() => setIsAiModalOpen(true)}
       />
 
+      {/* Ultra Vault — arrange photos & videos by date (organize + search) */}
+      {appMode === 'media_vault' && (
+        <main className="flex-1 max-w-[1720px] w-full mx-auto p-4 sm:p-6 lg:p-8">
+          <MediaOrganizer />
+        </main>
+      )}
+
       {/* Music Bar Strip */}
       <div className="max-w-[1720px] w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4">
         <BackgroundMusicPlayer />
       </div>
 
-      {/* Main Workspace based on Studio Mode */}
-      {appMode === 'ai_chat' ? (
+      {/* Main Workspace based on Studio Mode (media_vault renders above) */}
+      {appMode === 'media_vault' ? null : appMode === 'ai_chat' ? (
         <ChatPage onExit={() => setAppMode('video_studio')} />
       ) : appMode === 'video_studio' ? (
         <main className="flex-1 max-w-[1720px] w-full mx-auto p-4 sm:p-6 lg:p-8">
@@ -592,7 +600,7 @@ export default function App() {
       {/* Author credit */}
       <footer className="no-print mt-10 mb-4 text-center text-[11px] leading-relaxed text-slate-500">
         <p className="font-semibold tracking-wide text-slate-400">
-          mediavault · by Valentine Onuchukwu
+          Ultimate Media Vault · by Valentine Onuchukwu
         </p>
         <p>
           ProsperChild Technology — Nigeria ·{' '}

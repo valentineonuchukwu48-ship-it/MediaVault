@@ -1,6 +1,6 @@
 {
   "name": "mediavault",
-  "productName": "MediaVault",
+  "productName": "Ultimate Media Vault",
   "private": true,
   "version": "2.0.0",
   "description": "Your private media vault: archive Facebook posts to tamper-evident PDFs, download and merge videos — everything stays on your own machine.",
@@ -46,6 +46,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "dotenv": "^17.2.3",
     "electron-updater": "^6.3.9",
+    "exifreader": "^4.50.0",
     "express": "^4.21.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

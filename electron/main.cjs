@@ -20,7 +20,7 @@ const { spawn } = require('child_process');
 
 const IS_DEV = !app.isPackaged;
 const PROJECT_ROOT = path.join(__dirname, '..');
-const APP_NAME = 'mediavault';
+const APP_NAME = 'Ultimate Media Vault';
 
 // ---------------------------------------------------------------------------
 // Paths
