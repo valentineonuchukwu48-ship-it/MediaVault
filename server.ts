@@ -750,18 +750,35 @@ app.post('/api/fetch-facebook', async (req, res) => {
   let isLoginGate = false;
 
   try {
-    const response = await fetch(rawInput, {
-      headers: {
-        'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      redirect: 'follow',
-      signal: AbortSignal.timeout(2800),
-    });
+    // Facebook intermittently serves a login wall / 4xx / agent-check to
+    // anonymous robots. One short backoff-and-retry removes most of the
+    // transient "failed to fetch" noise users see.
+    let html = '';
+    let statusOk = false;
+    for (let attempt = 0; attempt < 2 && !statusOk; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
+      try {
+        const response = await fetch(rawInput, {
+          headers: {
+            'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+          redirect: 'follow',
+          signal: AbortSignal.timeout(6000),
+        });
+        if (response.ok) {
+          html = await response.text();
+          statusOk = true;
+        } else {
+          isLoginGate = true;
+        }
+      } catch {
+        isLoginGate = true;
+      }
+    }
 
-    if (response.ok) {
-      const html = await response.text();
+    if (statusOk) {
 
       const titleMatch = html.match(/<meta property=["']og:title["']\s+content=["'](.*?)["']/i) ||
                          html.match(/<meta content=["'](.*?)["']\s+property=["']og:title["']/i);

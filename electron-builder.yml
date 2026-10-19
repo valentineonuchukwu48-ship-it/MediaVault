@@ -51,6 +51,10 @@ nsis:
   runAfterFinish: true
   deleteAppDataOnUninstall: false
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
+  # Phone Connect: Windows blocks inbound LAN connections by default. The
+  # installer runs elevated, so it (not the app) adds the firewall allow-rule
+  # for the freshly installed .exe — any port, any network profile.
+  include: build/installer.nsh
 
 portable:
   artifactName: ${productName}-${version}-portable.${ext}
