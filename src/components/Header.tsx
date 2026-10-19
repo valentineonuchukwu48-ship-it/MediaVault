@@ -26,24 +26,25 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-3.5 border-b border-slate-800 bg-slate-900/95 backdrop-blur-md sticky top-0 z-40">
-      {/* Zone 1: Brand & App Mode Switcher */}
-      <div className="flex items-center gap-4 shrink-0">
-        <div className="flex items-center gap-3">
+      {/* Zone 1: Brand & App Mode Switcher (wraps on narrow screens) */}
+      <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1 basis-full sm:basis-auto sm:flex-none">
+        <div className="flex items-center gap-3 shrink-0">
           <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm shadow-blue-500/20">
             f
           </div>
           <div className="flex flex-col">
-            <span className="text-base font-bold tracking-tight text-white whitespace-nowrap">
+            <span className="text-sm sm:text-base font-bold tracking-tight text-white whitespace-nowrap">
               FaceStudio &middot; Video &amp; PDF
             </span>
-            <span className="text-[11px] text-slate-400 font-mono tracking-tight -mt-0.5">
+            <span className="text-[11px] text-slate-400 font-mono tracking-tight -mt-0.5 whitespace-nowrap">
               Facebook Video Merger &amp; Archival Suite
             </span>
           </div>
         </div>
 
-        {/* Studio Switcher Pill */}
-        <div className="flex items-center p-1 bg-slate-800 rounded-xl border border-slate-700/80 text-xs font-semibold">
+        {/* Studio Switcher Pill — horizontally scrollable when too wide for a phone */}
+        <div className="flex items-center max-w-full overflow-x-auto no-scrollbar p-1 bg-slate-800 rounded-xl border border-slate-700/80 text-xs font-semibold">
+          <div className="flex items-center gap-0 shrink-0">
           <button
             onClick={() => setAppMode('video_studio')}
             className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
@@ -85,6 +86,7 @@ export const Header: React.FC<HeaderProps> = ({
               BYOK
             </span>
           </button>
+          </div>
         </div>
       </div>
 

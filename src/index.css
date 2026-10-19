@@ -1,6 +1,15 @@
 @import "tailwindcss";
 
 @layer utilities {
+  /* Hide scrollbars on horizontally scrollable rows (mobile switcher pills). */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
   @media print {
     body {
       background-color: white !important;
