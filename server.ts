@@ -1243,20 +1243,23 @@ app.post('/api/ai/models', async (req, res) => {
 // ==========================================
 
 // Private IPv4 addresses only (192.168.x.x / 10.x.x.x / 172.16-31.x.x).
-// This is where the desktop app advertises itself to phones on the same
-// Wi-Fi. Loopback and link-local are never advertised.
+// Ranked: typical home Wi-Fi prefixes first (192.168, then 10.x). Windows
+// virtual adapters (WSL, Hyper-V, Docker) commonly sit in 172.16-31.x.x and
+// are unreachable from a phone, so they are advertised last.
 function lanUrlCandidates(): string[] {
-  const urls: string[] = [];
+  const candidates: Array<{ ip: string; rank: number }> = [];
   const port = String(PORT);
   const ifaces = os.networkInterfaces();
   for (const list of Object.values(ifaces)) {
     for (const addr of list || []) {
       if (addr.family !== 'IPv4' || addr.internal) continue;
       if (!/^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(addr.address)) continue;
-      urls.push(`http://${addr.address}:${port}`);
+      const rank = addr.address.startsWith('192.168.') ? 0 : addr.address.startsWith('10.') ? 1 : 2;
+      candidates.push({ ip: addr.address, rank });
     }
   }
-  return urls;
+  candidates.sort((a, b) => a.rank - b.rank);
+  return candidates.map(({ ip }) => `http://${ip}:${port}`);
 }
 
 // The engine binds to the host the Electron shell chose (127.0.0.1 by default,

@@ -261,7 +261,7 @@ export const DesktopPanel: React.FC = () => {
       </button>
 
       {open && (
-        <div className="fixed bottom-20 right-5 z-[61] w-[360px] max-w-[92vw] rounded-2xl border border-slate-700/70 bg-slate-900/97 backdrop-blur-xl shadow-2xl shadow-black/50 no-print">
+        <div className="fixed bottom-20 right-5 z-[61] w-[360px] max-w-[92vw] max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain rounded-2xl border border-slate-700/70 bg-slate-900/97 backdrop-blur-xl shadow-2xl shadow-black/50 no-print">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
               <Monitor className="w-4 h-4 text-cyan-300" />

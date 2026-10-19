@@ -83,6 +83,9 @@ function writeSettings(patch) {
 // Engine lifecycle
 // ---------------------------------------------------------------------------
 let engine = null;
+// True while restartEngine() is intentionally stopping the old engine — the
+// exit alarm must not treat that as a crash.
+let expectedEngineExit = false;
 let enginePort = 0;
 let mainWindow = null;
 let splashWindow = null;
@@ -142,7 +145,7 @@ function startEngine(port) {
   child.stderr.on('data', (d) => process.stderr.write(`[engine] ${d}`));
   child.on('exit', (code) => {
     engine = null;
-    if (!quitting && code !== 0) {
+    if (!quitting && !expectedEngineExit && code !== 0) {
       dialog.showErrorBox(
         `${APP_NAME} — engine stopped`,
         `The background engine exited unexpectedly (code ${code}).\n\nTry restarting the app.`
@@ -297,6 +300,8 @@ async function restartEngine() {
   }
 
   if (engine && !engine.killed) {
+    // Silence the crash alarm for this intentional stop (Phone Connect rebind).
+    expectedEngineExit = true;
     await new Promise((resolve) => {
       const timer = setTimeout(resolve, 3000); // hard stop — never hang the UI
       engine.once('exit', () => {
@@ -307,6 +312,7 @@ async function restartEngine() {
         engine.kill();
       } catch {}
     });
+    expectedEngineExit = false;
   }
 
   engine = startEngine(port);
