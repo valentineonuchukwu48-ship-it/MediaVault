@@ -28,6 +28,12 @@ describe('dateFromFilename — phone & camera conventions', () => {
     expect(dateFromFilename('holiday_20241332_x.jpg')).toBe('');
     expect(dateFromFilename('rose_mary.jpg')).toBe('');
   });
+
+  it('rejects a lone year with no month/day behind it (the Invalid-time killer)', () => {
+    expect(dateFromFilename('dreamobjects_logo-horiz-2013.png')).toBe('');
+    expect(dateFromFilename('jamb-chem-1999')).toBe('');
+    expect(dateFromFilename('wassce-2015-mathematics-indices-surds-quadratics.mp4')).toBe('');
+  });
 });
 
 describe('parseExifDate', () => {

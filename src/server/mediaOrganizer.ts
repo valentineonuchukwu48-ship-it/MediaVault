@@ -149,8 +149,15 @@ export function dateFromFilename(name: string): string {
       }
     }
 
-    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
-    if (hour > 23 || minute > 59 || second > 59) continue;
+    // Fail-closed validation: undefined/NaN parts (a lone year like "2013"
+    // with no month after it) must never reach Date.UTC.
+    const valid =
+      month >= 1 && month <= 12 &&
+      day >= 1 && day <= 31 &&
+      hour >= 0 && hour <= 23 &&
+      minute >= 0 && minute <= 59 &&
+      second >= 0 && second <= 59;
+    if (!valid) continue;
     return new Date(Date.UTC(year, month - 1, day, hour, minute, second)).toISOString();
   }
   return '';
@@ -341,15 +348,28 @@ export function createMediaRouter({ dataDir, quickPicks = [] }: OrganizerDeps): 
     try {
       const { files, skippedDirs } = listMediaFiles(root);
       const photos = files.filter((f) => f.kind === 'photo');
+      let broken = 0;
+      // Per-file isolation: a single corrupt/unusual file must never kill the scan.
+      // A file whose date can't be worked out simply lands in "Undated".
       for (const file of photos) {
-        const exif = await extractDate(file.abs, file.name, 'photo');
-        file.date = exif.date;
-        file.dateSource = exif.dateSource;
+        try {
+          const exif = await extractDate(file.abs, file.name, 'photo');
+          file.date = exif.date;
+          file.dateSource = exif.dateSource;
+        } catch (err) {
+          broken++;
+          console.error(`[media-organizer] date failed for ${file.rel}: ${(err as Error)?.stack || err}`);
+        }
       }
       for (const file of files.filter((f) => f.kind === 'video')) {
-        const meta = await extractDate(file.abs, file.name, 'video');
-        file.date = meta.date;
-        file.dateSource = meta.dateSource;
+        try {
+          const meta = await extractDate(file.abs, file.name, 'video');
+          file.date = meta.date;
+          file.dateSource = meta.dateSource;
+        } catch (err) {
+          broken++;
+          console.error(`[media-organizer] date failed for ${file.rel}: ${(err as Error)?.stack || err}`);
+        }
       }
 
       // Fill sizes (photos already looped; do everything here in one pass).
@@ -402,7 +422,9 @@ export function createMediaRouter({ dataDir, quickPicks = [] }: OrganizerDeps): 
         })),
       });
     } catch (err) {
-      return res.status(500).json({ error: String((err as Error).message || err) });
+      const e = err as Error;
+      console.error('[media-organizer] scan failed:', e?.stack || err);
+      return res.status(500).json({ error: String(e?.message || err) });
     } finally {
       scanning = false;
     }
