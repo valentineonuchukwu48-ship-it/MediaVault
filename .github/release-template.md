@@ -1,6 +1,6 @@
 **mediavault** — archive Facebook posts to tamper-evident PDFs, and download / merge videos with sound. Runs entirely on your own machine: no account, no server, your data never leaves your computer.
 
-Created by **Valentine Onuchukwu** — ProsperChild Technology, Nigeria.
+Created by **Valentine Onuchukwu** — ProsperChild Technology.
 
 ---
 
@@ -106,4 +106,4 @@ Free forever. If it saves you time: [buy me a coffee](https://flutterwave.com/do
 
 ---
 
-© 2026 Valentine Onuchukwu — ProsperChild Technology, Nigeria · valentineonuchukwu@gmail.com · MIT License
+© 2026 Valentine Onuchukwu — ProsperChild Technology · valentineonuchukwu@gmail.com · MIT License

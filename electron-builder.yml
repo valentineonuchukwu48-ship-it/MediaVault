@@ -5,7 +5,7 @@
 # archive. Shipping real files keeps dev and production behaviour identical.
 appId: com.valentineonuchukwu.mediavault
 productName: mediavault
-copyright: Copyright © 2026 Valentine Onuchukwu — ProsperChild Technology, Nigeria
+copyright: Copyright © 2026 Valentine Onuchukwu — ProsperChild Technology
 
 directories:
   output: release
@@ -36,8 +36,8 @@ win:
       arch: [x64]
   icon: build-resources/icon.png
   signtoolOptions:
-    publisherName: ProsperChild Technology, Nigeria
-  legalTrademarks: mediavault — Valentine Onuchukwu, ProsperChild Technology, Nigeria
+    publisherName: ProsperChild Technology
+  legalTrademarks: mediavault — Valentine Onuchukwu, ProsperChild Technology
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
 nsis:

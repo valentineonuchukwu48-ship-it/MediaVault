@@ -6,7 +6,7 @@
 [![Tests](https://img.shields.io/github/actions/workflow/status/valentineonuchukwu48-ship-it/mediavault/ci.yml?branch=main&label=tests&logo=github)](https://github.com/valentineonuchukwu48-ship-it/mediavault/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/Windows_%7C_macOS_%7C_Linux_%7C_Android-lightgrey?logo=windows95)](https://github.com/valentineonuchukwu48-ship-it/mediavault/releases)
 
-**MediaVault** is a **local-first media vault** for your photos, videos and important documents — built by [Valentine Onuchukwu](https://github.com/valentineonuchukwu48-ship-it) (ProsperChild Technology, Nigeria). Everything runs on your own machine: no account, no server, your files never leave your computer.
+**MediaVault** is a **local-first media vault** for your photos, videos and important documents — built by [Valentine Onuchukwu](https://github.com/valentineonuchukwu48-ship-it) (ProsperChild Technology). Everything runs on your own machine: no account, no server, your files never leave your computer.
 
 > 🕰️ **Born as a Facebook archiver.** MediaVault started as a tool to archive Facebook posts into tamper-evident PDFs and download videos with sound. It's now growing into the private vault for your whole digital life — and the Facebook archival features you rely on are all still here.
 
@@ -98,4 +98,4 @@ Free forever, MIT licensed. If it saves you time: [buy me a coffee](https://flut
 
 ---
 
-© 2026 Valentine Onuchukwu — ProsperChild Technology, Nigeria · valentineonuchukwu@gmail.com · MIT License
+© 2026 Valentine Onuchukwu — ProsperChild Technology · valentineonuchukwu@gmail.com · MIT License

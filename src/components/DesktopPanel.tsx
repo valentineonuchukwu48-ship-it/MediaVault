@@ -553,7 +553,7 @@ export const DesktopPanel: React.FC = () => {
               <p className="text-[10px] text-slate-600 leading-relaxed">
                 Ultimate Media Vault — by Valentine Onuchukwu
                 <br />
-                ProsperChild Technology, Nigeria
+                ProsperChild Technology
                 <br />
                 valentineonuchukwu@gmail.com
               </p>

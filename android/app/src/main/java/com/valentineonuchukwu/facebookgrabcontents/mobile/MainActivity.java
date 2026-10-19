@@ -91,7 +91,7 @@ public class MainActivity extends Activity {
         root.addView(title);
 
         TextView sub = new TextView(this);
-        sub.setText("\uD83D\uDCF1 ProsperChild Technology, Nigeria");
+        sub.setText("\uD83D\uDCF1 ProsperChild Technology");
         sub.setTextColor(BRAND_HINT);
         sub.setTextSize(12);
         sub.setGravity(Gravity.CENTER);

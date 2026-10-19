@@ -28,12 +28,12 @@ const initialPosts: FacebookPost[] = [
     url: 'https://web.facebook.com/photo?fbid=122129387847098460&set=pcb.122129389287098460',
     authorName: 'Obiajulu Onuchukwu',
     authorHandle: '@obiajulu.onuchukwu',
-    authorAvatar: '/src/assets/images/fb_author_avatar_1791644771333.jpg',
+    authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
     isVerified: true,
     postDate: 'October 10, 2026 at 11:42 AM',
     postContent:
       'Mathematics & Logic Problem Set Solutions:\n\n8. Socks Probability: You own thirteen pairs of socks, all different, and all jumbled in a drawer. How many must you pull out to guarantee having a matching pair?\nAnswer: (d) 14 socks.\n\n9. Gold/Silver Concentration: 20 gram ring with 60% gold. How much gold must be added to reach 80% gold?\nAnswer: (e) 20 grams.\n\n10 & 11. Referee card game permutations and elimination logic puzzle.\n\nFull step-by-step solutions in attached worksheet.',
-    images: ['/src/assets/images/fb_math_worksheet_1791646396764.jpg'],
+    images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
     likesCount: 342,
     commentsCount: 47,
     sharesCount: 19,
@@ -67,7 +67,7 @@ const initialPosts: FacebookPost[] = [
     postDate: 'October 9, 2026 at 3:15 PM',
     postContent:
       'What an inspiring day exploring the future of technology, impact, and design ethics! Grateful for our brilliant speakers and engaged participants from over 45 countries. 🎙️💡 #TechSummit2026 #Innovation #Keynote',
-    images: ['/src/assets/images/fb_post_keynote_1791644787103.jpg'],
+    images: ['/demo/fb_post_keynote_1791644787103.jpg'],
     likesCount: 820,
     commentsCount: 94,
     sharesCount: 65,
@@ -245,7 +245,7 @@ export default function App() {
         url: 'https://web.facebook.com/photo?fbid=122129387847098460',
         authorName: authorName.trim() || 'Obiajulu Onuchukwu',
         authorHandle: `@${(authorName || 'user').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-        authorAvatar: '/src/assets/images/fb_author_avatar_1791644771333.jpg',
+        authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
         isVerified: true,
         postDate: new Date().toLocaleDateString('en-US', {
           month: 'long',
@@ -603,7 +603,7 @@ export default function App() {
           Ultimate Media Vault · by Valentine Onuchukwu
         </p>
         <p>
-          ProsperChild Technology — Nigeria ·{' '}
+          ProsperChild Technology ·{' '}
           <span className="text-slate-400">valentineonuchukwu@gmail.com</span>
         </p>
       </footer>

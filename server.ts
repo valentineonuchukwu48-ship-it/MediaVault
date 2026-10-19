@@ -279,7 +279,7 @@ button{width:100%;margin-top:14px;padding:12px;border:0;border-radius:10px;backg
 <p class="sub">Type the 6-digit pairing code shown on your computer in<br><b>Desktop &rarr; Phone Connect</b>.</p>
 <form method="post" action="/pair"><input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="off" autofocus required>
 <button type="submit">Pair &amp; open the app</button>${errHtml}</form>
-<p class="foot">Ultimate Media Vault &mdash; ProsperChild Technology, Nigeria</p></div></body></html>`;
+<p class="foot">Ultimate Media Vault &mdash; ProsperChild Technology</p></div></body></html>`;
 }
 
 app.use((req, res, next) => {
@@ -611,11 +611,11 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
           url: originalHref,
           authorName: author,
           authorHandle: `@${author.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-          authorAvatar: authorAvatar || '/src/assets/images/fb_author_avatar_1791644771333.jpg',
+          authorAvatar: authorAvatar || '/demo/fb_author_avatar_1791644771333.jpg',
           isVerified: true,
           postDate: dateStr,
           postContent: fullContent || 'Facebook post with photo attachments',
-          images: images.length > 0 ? images : ['/src/assets/images/fb_math_worksheet_1791646396764.jpg'],
+          images: images.length > 0 ? images : ['/demo/fb_math_worksheet_1791646396764.jpg'],
           likesCount: likes,
           commentsCount: comments,
           sharesCount: shares,
@@ -639,12 +639,12 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
       url: originalHref,
       authorName: 'Civil Service Exam Reviewers',
       authorHandle: '@civilserviceexamreviewers',
-      authorAvatar: '/src/assets/images/fb_author_avatar_1791644771333.jpg',
+      authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
       isVerified: true,
       postDate: 'October 8, 2026',
       postContent:
         'Mathematics Review (With Explanation) Review \n - MARCH 2027 CIVIL SERVICE EXAM Reviewer -\n\nFor more FREE reviewers and exam updates, just follow this page.\n\nWorksheet Problem Set Solutions:\n8. Socks Probability: You own thirteen pairs of socks. How many must you pull out to guarantee having a matching pair?\nAnswer: (d) 14 socks.\n\n9. Gold/Silver Concentration: 20g ring (60% gold, 40% silver). How many grams of gold needed to reach 80% gold?\nAnswer: (e) 20 grams.\n\n10 & 11. Referee card permutations and elimination logic puzzle.\n\nFull step-by-step solutions in attached worksheet.',
-      images: ['/src/assets/images/fb_math_worksheet_1791646396764.jpg'],
+      images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
       likesCount: 184,
       commentsCount: 38,
       sharesCount: 14,
@@ -666,7 +666,7 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
     isVerified: true,
     postDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     postContent: `Facebook Embed Post [ID: ${meta.fbid}]\n\nExtracted from iframe embed code. Post contents, metadata, and link preserved for PDF export.`,
-    images: ['/src/assets/images/fb_math_worksheet_1791646396764.jpg'],
+    images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
     likesCount: 95,
     commentsCount: 14,
     sharesCount: 5,
@@ -847,12 +847,12 @@ app.post('/api/fetch-facebook', async (req, res) => {
       url: rawInput,
       authorName: 'Obiajulu Onuchukwu',
       authorHandle: '@obiajulu.onuchukwu',
-      authorAvatar: '/src/assets/images/fb_author_avatar_1791644771333.jpg',
+      authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
       postDate: 'October 10, 2026 at 11:42 AM',
       postContent:
         'Mathematics & Logic Problem Set Solutions:\n\n8. Socks Probability: You own thirteen pairs of socks. How many must you pull out to guarantee having a matching pair?\nAnswer: (d) 14 socks.\n\n9. Gold/Silver Concentration: 20g ring (60% gold, 40% silver). How many grams of gold needed to reach 80% gold?\nAnswer: (e) 20 grams.\n\n10 & 11. Referee card permutations and elimination logic puzzle.\n\nFull step-by-step solutions in attached worksheet.',
       images: [
-        '/src/assets/images/fb_math_worksheet_1791646396764.jpg',
+        '/demo/fb_math_worksheet_1791646396764.jpg',
       ],
       likesCount: 342,
       commentsCount: 47,
@@ -934,7 +934,7 @@ app.post('/api/fetch-multiple-embeds', async (req, res) => {
         isVerified: true,
         postDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         postContent: `Facebook Embed Post [ID: ${meta.fbid}]`,
-        images: ['/src/assets/images/fb_math_worksheet_1791646396764.jpg'],
+        images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
         likesCount: 95,
         commentsCount: 14,
         sharesCount: 5,

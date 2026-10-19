@@ -35,7 +35,7 @@ interface VerifierCorpus {
 
 function canonicalCorpus(): string {
   const corpus: VerifierCorpus = {
-    app: 'Ultimate Media Vault — ProsperChild Technology, Nigeria',
+    app: 'Ultimate Media Vault — ProsperChild Technology',
     formatVersion: FORMAT_VERSION,
     genesis: GENESIS,
     exportedAt: new Date().toISOString(),
@@ -103,7 +103,7 @@ export const VERIFIER_HTML = [
   '(3) the <b>chain</b>: every entry must declare the previous entry\u2019s hash as its previousHash.',
   'Any single byte of tampering anywhere in history breaks every check after it and is displayed above.',
   '</div>',
-  '<div class="footer">Ultimate Media Vault &mdash; ProsperChild Technology, Nigeria &middot; Valentine Onuchukwu &middot; valentineonuchukwu@gmail.com</div>',
+  '<div class="footer">Ultimate Media Vault &mdash; ProsperChild Technology &middot; Valentine Onuchukwu &middot; valentineonuchukwu@gmail.com</div>',
   '</div>',
   '<script id="fgc-corpus">window.FGC_CORPUS=__FGC_CORPUS__;</script>',
   '<script id="fgc-verifier-js">',

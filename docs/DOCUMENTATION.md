@@ -3,7 +3,7 @@
 **Archive Facebook posts as evidence-grade PDFs, download/merge Facebook videos with sound, prove nothing got tampered with — and watch the posts you care about. Runs entirely on your own machine.**
 
 - **Version of this document:** matches app `1.4.0`
-- **Author:** Valentine Onuchukwu — ProsperChild Technology, Nigeria
+- **Author:** Valentine Onuchukwu — ProsperChild Technology
 - **License:** MIT — free forever
 - **Support the project:** https://flutterwave.com/donate/fysqhtbnfznn
 - **Mobile APK / desktop installers:** https://github.com/valentineonuchukwu48-ship-it/mediavault/releases
@@ -479,4 +479,4 @@ CI also runs on every push to `main` and PR in `ci.yml` (lint → tests → buil
 
 ---
 
-*mediavault — ProsperChild Technology, Nigeria. Built by Valentine Onuchukwu (valentineonuchukwu@gmail.com). Free and MIT. If it saves you time: [buy me a coffee](https://flutterwave.com/donate/fysqhtbnfznn).*
+*mediavault — ProsperChild Technology. Built by Valentine Onuchukwu (valentineonuchukwu@gmail.com). Free and MIT. If it saves you time: [buy me a coffee](https://flutterwave.com/donate/fysqhtbnfznn).*

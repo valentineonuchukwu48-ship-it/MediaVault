@@ -361,7 +361,7 @@ function showAbout() {
     detail:
       `Facebook post archiver + video downloader/merger.\n\n` +
       `Created by Valentine Onuchukwu\n` +
-      `ProsperChild Technology — Nigeria\n` +
+      `ProsperChild Technology\n` +
       `✉  valentineonuchukwu@gmail.com\n` +
       `☕  https://flutterwave.com/donate/fysqhtbnfznn\n\n` +
       `Engine: 127.0.0.1:${enginePort}\nData folder: ${DATA_DIR}\n` +
