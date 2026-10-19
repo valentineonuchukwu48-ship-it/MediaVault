@@ -1363,7 +1363,15 @@ app.get('/api/radar/stream', (req, res) => {
 });
 
 // Health & readiness endpoint (senior-dev standard)
-app.use('/api/media', createMediaRouter({ dataDir: DATA_DIR }));
+app.use('/api/media', createMediaRouter({
+  dataDir: DATA_DIR,
+  quickPicks: [
+    { label: '⚡ Facebook downloads (videos & merges)', path: MERGED_DIR },
+    { label: '⬇️ Downloads', path: path.join(os.homedir(), 'Downloads') },
+    { label: '🖼️ Pictures', path: path.join(os.homedir(), 'Pictures') },
+    { label: '📄 Documents', path: path.join(os.homedir(), 'Documents') },
+  ],
+}));
 
 app.get('/api/health', (_req, res) => {
   const chain = verifyChain();

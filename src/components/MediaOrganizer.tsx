@@ -37,12 +37,6 @@ interface ApplyResult {
   folders: number;
 }
 
-const SAMPLES = [
-  'C:\\Users\\USER\\Downloads',
-  'C:\\Users\\USER\\Pictures',
-  'C:\\Users\\USER\\Documents',
-];
-
 function prettyBytes(n: number): string {
   if (!n) return '0 B';
   const steps = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -72,6 +66,7 @@ const SOURCE_BADGE: Record<MediaFileVersion['dateSource'], { label: string; cls:
 
 export const MediaOrganizer: React.FC = () => {
   const [dir, setDir] = useState('');
+  const [quickPicks, setQuickPicks] = useState<Array<{ label: string; path: string }>>([]);
   const [scanning, setScanning] = useState(false);
   const [scanError, setScanError] = useState('');
   const [scan, setScan] = useState<ScanResult | null>(null);
@@ -114,6 +109,13 @@ export const MediaOrganizer: React.FC = () => {
     }
     return map;
   }, [scan]);
+
+  React.useEffect(() => {
+    fetch('/api/media/defaults')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setQuickPicks(Array.isArray(d?.quickPicks) ? d.quickPicks : []))
+      .catch(() => {});
+  }, []);
 
   const doScan = async (target?: string) => {
     const dirToScan = target ?? dir;
@@ -248,14 +250,15 @@ export const MediaOrganizer: React.FC = () => {
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          {SAMPLES.map((s) => (
+          {quickPicks.map((q) => (
             <button
-              key={s}
-              onClick={() => void doScan(s)}
+              key={q.path}
+              onClick={() => void doScan(q.path)}
               disabled={scanning}
+              title={q.path}
               className="px-2.5 py-1 rounded-full text-[10.5px] bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-cyan-600/60 transition-colors"
             >
-              {s.split('\\').slice(-2).join('\\')}
+              {q.label}
             </button>
           ))}
         </div>

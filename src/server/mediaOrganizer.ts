@@ -304,9 +304,11 @@ function pruneJournals(dataDir: string): void {
 
 interface OrganizerDeps {
   dataDir: string;
+  /** App-suggested starting points (engine's own outputs, user folders). */
+  quickPicks?: Array<{ label: string; path: string }>;
 }
 
-export function createMediaRouter({ dataDir }: OrganizerDeps): Router {
+export function createMediaRouter({ dataDir, quickPicks = [] }: OrganizerDeps): Router {
   const router = Router();
   const sessions = new Map<string, MediaSession>();
   let scanning = false;
@@ -315,6 +317,11 @@ export function createMediaRouter({ dataDir }: OrganizerDeps): Router {
     const id = typeof rootId === 'string' ? rootId : '';
     return sessions.get(id) || null;
   };
+
+  /** Where the app suggests you start: engine outputs + the usual user folders. */
+  router.get('/defaults', (_req: Request, res: Response) => {
+    res.json({ quickPicks });
+  });
 
   router.post('/scan', async (req: Request, res: Response) => {
     const raw = typeof req.body?.dir === 'string' ? req.body.dir.trim() : '';
