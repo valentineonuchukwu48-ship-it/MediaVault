@@ -16,21 +16,22 @@
 2. [Architecture — the big picture](#2-architecture--the-big-picture)
 3. [Installing & first run](#3-installing--first-run)
 4. [Feature: Post → PDF dossier](#4-feature-post--pdf-dossier)
-5. [Feature: Video download, sound & merging](#5-feature-video-download-sound--merging)
-6. [Feature: AI voiceovers, TTS & music](#6-feature-ai-voiceovers-tts--music)
-7. [Feature: Bring-your-own-key AI studio](#7-feature-bring-your-own-key-ai-studio)
-8. [Feature: Evidence Vault — the tamper-evident hash chain](#8-feature-evidence-vault--the-tamper-evident-hash-chain)
-9. [Feature: Zero-Trust Verifier bundle](#9-feature-zero-trust-verifier-bundle)
-10. [Feature: Deletion Radar — watch posts for edits & deletions](#10-feature-deletion-radar)
-11. [Feature: Phone Connect — mobile app (Android/iPhone)](#11-feature-phone-connect--mobile-app)
-12. [Feature: Pairing security (LAN protection)](#12-feature-pairing-security-lan-protection)
-13. [Security model summary](#13-security-model-summary)
-14. [Where your data lives](#14-where-your-data-lives)
-15. [API reference](#15-api-reference)
-16. [Environment variables](#16-environment-variables)
-17. [Build & release pipeline](#17-build--release-pipeline)
-18. [Troubleshooting](#18-troubleshooting)
-19. [FAQ](#19-faq)
+5. [Feature: Media Vault & one-click popup](#5-feature-media-vault--one-click-popup)
+6. [Feature: Video download, sound & merging](#6-feature-video-download-sound--merging)
+7. [Feature: AI voiceovers, TTS & music](#7-feature-ai-voiceovers-tts--music)
+8. [Feature: Bring-your-own-key AI studio](#8-feature-bring-your-own-key-ai-studio)
+9. [Feature: Evidence Vault — the tamper-evident hash chain](#9-feature-evidence-vault--the-tamper-evident-hash-chain)
+10. [Feature: Zero-Trust Verifier bundle](#10-feature-zero-trust-verifier-bundle)
+11. [Feature: Deletion Radar — watch posts for edits & deletions](#11-feature-deletion-radar)
+12. [Feature: Phone Connect — mobile app (Android/iPhone)](#12-feature-phone-connect--mobile-app)
+13. [Feature: Pairing security (LAN protection)](#13-feature-pairing-security-lan-protection)
+14. [Security model summary](#14-security-model-summary)
+15. [Where your data lives](#15-where-your-data-lives)
+16. [API reference](#16-api-reference)
+17. [Environment variables](#17-environment-variables)
+18. [Build & release pipeline](#18-build--release-pipeline)
+19. [Troubleshooting](#19-troubleshooting)
+20. [FAQ](#20-faq)
 
 ---
 
@@ -109,7 +110,7 @@ Why a separate engine? A heavy 200 MB video merge can never freeze or crash the 
 
 ### Watching from your phone
 
-See [Phone Connect](#11-feature-phone-connect--mobile-app). Phones pair through a one-time 6-digit code (see [Pairing security](#12-feature-pairing-security-lan-protection)).
+See [Phone Connect](#12-feature-phone-connect--mobile-app). Phones pair through a one-time 6-digit code (see [Pairing security](#13-feature-pairing-security-lan-protection)).
 
 ### Upgrading (no GitHub visit needed)
 
@@ -137,9 +138,31 @@ Extraction strategy is layered: embed plugin → og crawl → url-parameters rec
 
 **Then it becomes a PDF in your browser** (`src/utils/pdfGenerator.ts`): jsPDF + html2canvas render a dossier with cover sheet, archival report cards, table of contents, QR code linking back to the post, and — when the vault is used — the verification hashes. Suggested filenames and one-click multi-post combined documents included.
 
+**Every saved post is also one click away from WhatsApp**: any photo in a post card opens a fullscreen popup with **Copy picture** (straight to clipboard — paste into WhatsApp, Word, anything), **Share** (the device's native share sheet) and **Save to folder**. Post cards also offer **Copy post text** (one click puts the whole caption on your clipboard) and **Share post**. Facebook-hosted photos are served through the app's own `/api/proxy-image` so copying is never blocked by cross-site rules.
+
 ---
 
-## 5. Feature: Video download, sound & merging
+## 5. Feature: Media Vault & one-click popup
+
+**Media Vault — arrange by date** scans any folder you point it at (photos & videos), times every file by its best evidence (EXIF → filename → file date) and can file everything into clean `By Date\YYYY-MM…` folders — with a full undo, nothing deleted, collisions renamed.
+
+**Search** filters instantly by name or date range. Click any result and the **fullscreen popup** opens:
+
+| Action | What it does |
+|---|---|
+| **Copy picture** | Puts the photo on your clipboard as PNG — paste directly into WhatsApp Web/Desktop, Word, email… |
+| **Share** | Opens the device share sheet (Windows/Android) — pick WhatsApp, Telegram, anything. |
+| **Save to folder** | Standard "Save as" dialog — it's your file, put it anywhere. |
+| **← → / on-page arrows** | Flip through the current match list without closing the popup. |
+| **Esc / click outside** | Close. |
+
+Videos behave the same except Copy (videos can't be pasted): they **play right in the popup** with full controls, and Share/Save send the original file. Facebook URLs are proxied for you; keys and file contents never leave your machine.
+
+Organise moves (preview → confirm → undo) are covered by `POST /api/media/preview|apply|undo`; the scan search uses `POST /api/media/scan` and serves thumbs/full media via `GET /api/media/file`.
+
+---
+
+## 6. Feature: Video download, sound & merging
 
 **Why downloads were always silent on other tools** — Facebook serves video and audio as **separate DASH streams**. This app handles it explicitly:
 
@@ -161,7 +184,7 @@ Extraction strategy is layered: embed plugin → og crawl → url-parameters rec
 
 ---
 
-## 6. Feature: AI voiceovers, TTS & music
+## 7. Feature: AI voiceovers, TTS & music
 
 - **TTS** (`/api/ai/tts`): Google Gemini TTS natively (`gemini-…-tts` models, voices like Puck/Kore/Fenrir…) or any OpenAI-compatible `/audio/speech` (voice names are auto-mapped). Output is a WAV you can download or burn into a video.
 - **Talking voiceover** (`/api/video/add-voiceover`): synthesises speech, then FFmpeg-
@@ -171,7 +194,7 @@ Extraction strategy is layered: embed plugin → og crawl → url-parameters rec
 
 ---
 
-## 7. Feature: Bring-your-own-key AI studio
+## 8. Feature: Bring-your-own-key AI studio
 
 Your key, your machine, your provider:
 
@@ -182,7 +205,7 @@ Your key, your machine, your provider:
 
 ---
 
-## 8. Feature: Evidence Vault — the tamper-evident hash chain
+## 9. Feature: Evidence Vault — the tamper-evident hash chain
 
 Sealing a post appends one JSON line to `vault/chain.ndjson`. Design goals: *tamper-evident, append-only, human-auditable, crash-safe*.
 
@@ -234,7 +257,7 @@ Together: chain integrity ✓ + zero-trust verifier ✓ + public anchor ✓ — 
 
 ---
 
-## 9. Feature: Zero-Trust Verifier bundle
+## 10. Feature: Zero-Trust Verifier bundle
 
 *The feature that makes your archive court-grade.* Desktop → **Evidence vault → Download zero-trust verifier** produces one portable `.html` file (`verifierBundle.ts`):
 
@@ -251,7 +274,7 @@ Why "zero-trust" matters: the verification code shipped *inside the app* might b
 
 ---
 
-## 10. Feature: Deletion Radar
+## 11. Feature: Deletion Radar
 
 **The button that presses itself.** Sealing proves *what you saw*; the Radar watches *what Facebook does next*.
 
@@ -277,7 +300,7 @@ Deleting "watched" status never deletes the sealed history — the vault keeps w
 
 ---
 
-## 11. Feature: Phone Connect — mobile app
+## 12. Feature: Phone Connect — mobile app
 
 **Desktop panel → Phone Connect → Share to my phone.** The toggle makes the engine **rebind live** from `127.0.0.1` to `0.0.0.0` (and back) — no app restart — and then:
 
@@ -292,7 +315,7 @@ Windows will ask about the firewall the first time you share — allow **private
 
 ---
 
-## 12. Feature: Pairing security (LAN protection)
+## 13. Feature: Pairing security (LAN protection)
 
 Sharing on Wi-Fi is powerful — and dangerous if anyone could reach your engine. Phone Connect pairs instead:
 
@@ -309,7 +332,7 @@ In other words: the cafés on your Wi-Fi see a clean "Pair this device" wall; yo
 
 ---
 
-## 13. Security model summary
+## 14. Security model summary
 
 | Layer | Protection |
 |---|---|
@@ -324,7 +347,7 @@ In other words: the cafés on your Wi-Fi see a clean "Pair this device" wall; yo
 
 ---
 
-## 14. Where your data lives
+## 15. Where your data lives
 
 Desktop (packaged) — all inside your user profile:
 
@@ -347,7 +370,7 @@ Dev mode uses `./data/` in the repo; the same names. The AI key never leaves the
 
 ---
 
-## 15. API reference
+## 16. API reference
 
 All routes are same-origin, JSON unless noted. Numeric rate-limiters noted in §16.
 
@@ -396,7 +419,7 @@ Error shape is deliberate: `{ error: string, code?: ExtractionFailureCode, hint?
 
 ---
 
-## 16. Environment variables
+## 17. Environment variables
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -414,7 +437,7 @@ Error shape is deliberate: `{ error: string, code?: ExtractionFailureCode, hint?
 
 ---
 
-## 17. Build & release pipeline
+## 18. Build & release pipeline
 
 ### From source
 
@@ -447,7 +470,7 @@ CI also runs on every push to `main` and PR in `ci.yml` (lint → tests → buil
 
 ---
 
-## 18. Troubleshooting
+## 19. Troubleshooting
 
 | Symptom | What it means / what to do |
 |---|---|
@@ -463,7 +486,7 @@ CI also runs on every push to `main` and PR in `ci.yml` (lint → tests → buil
 
 ---
 
-## 19. FAQ
+## 20. FAQ
 
 **Is anything uploaded anywhere?** No. Everything is local: vault, videos, keys, logs. The engine talks to Facebook/AI providers strictly on your clicks.
 

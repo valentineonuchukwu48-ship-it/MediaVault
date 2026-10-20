@@ -18,6 +18,7 @@
 |---|---|
 | 📄 **Facebook post → PDF archiver** | Preserve posts as tamper-evident PDFs with a verification QR code and a hash-chained **Evidence Vault** you can prove existed on a specific date (OpenTimestamps). |
 | 🎬 **Video downloader & merger** | Grab Facebook Reels/watch videos and merge many clips into one high-definition MP4 — with sound. |
+| 👆 **Click → popup → copy / share / save** | Click any searched photo or video (or any photo in a saved post): fullscreen popup with **Copy** (paste straight into WhatsApp), **Share** (native share sheet) and **Save to folder** — videos play right in the popup. |
 | 🤖 **AI Studio** | Optional script drafting and AI chat (bring your own API key). |
 | 📱 **Phone Connect** | The full app on your phone over Wi-Fi — plus a native **Android companion APK**. |
 | 🔐 **Evidence Vault** | Every archived entry is hash-chained, exportable to CSV/Excel, and provable against the public Bitcoin calendar. |
