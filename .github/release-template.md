@@ -22,6 +22,22 @@ Created by **Valentine Onuchukwu** — ProsperChild Technology.
 - Unsigned build: right-click the app → **Open** the first time.
 - Apple Silicon (M1/M2/M3/M4) only.
 
+## 👆 NEW — Click any item: popup → copy / share / save (v2.0.1)
+
+Search a folder of photos/videos or open a saved post, then **click it** — a fullscreen
+popup opens with everything in one place:
+
+- **Copy picture** — the image is on your clipboard; paste it straight into WhatsApp,
+  Word, an email, anywhere.
+- **Share** — the native share sheet opens; pick WhatsApp (or anything else) and send it.
+- **Save to folder** — the normal "Save as" dialog; keep it wherever you like.
+- **Videos play right inside the popup** with full controls — Share or Save them too.
+- **Post cards** get the same treatment: copy the whole post text with one click,
+  share it, and click any photo in the gallery to copy/share/save it.
+
+Use the **← →** arrow keys (or on-page arrows) to flip through your matches; Esc closes.
+Facebook-hosted photos travel through the app's own proxy, so copying is never blocked.
+
 ## ⏳ NEW — Court-grade time proof (v1.4.0)
 
 Your archive now proves not just *what* it captured but **WHEN — anchored in the Bitcoin

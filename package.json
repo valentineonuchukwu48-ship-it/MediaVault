@@ -2,7 +2,7 @@
   "name": "mediavault",
   "productName": "Ultimate Media Vault",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Your private media vault: archive Facebook posts to tamper-evident PDFs, download and merge videos — everything stays on your own machine.",
   "author": {
     "name": "Valentine Onuchukwu",
