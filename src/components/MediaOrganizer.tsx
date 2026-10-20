@@ -246,7 +246,7 @@ export const MediaOrganizer: React.FC = () => {
           <div className="flex-1 min-w-[240px]">
             <h1 className="text-lg font-bold text-white">Media Vault — arrange by date</h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Point Ultimate Media Vault at any folder of photos &amp; videos. Everything is timed (EXIF → filename → file date) and filed into
+              Point MediaVault at any folder of photos &amp; videos. Everything is timed (EXIF → filename → file date) and filed into
               clean dated folders — with a full undo, always.
             </p>
           </div>

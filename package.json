@@ -2,7 +2,7 @@
   "name": "mediavault",
   "productName": "Ultimate Media Vault",
   "private": true,
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Your private media vault: archive Facebook posts to tamper-evident PDFs, download and merge videos — everything stays on your own machine.",
   "author": {
     "name": "Valentine Onuchukwu",
@@ -70,6 +70,7 @@
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
     "esbuild": "^0.28.0",
+    "puppeteer-core": "^25.14.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",

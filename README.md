@@ -1,10 +1,20 @@
 # MediaVault
 
-**Organize your life's media — privately, forever.**
+**Archive it. Prove it. Keep it. — on your own PC.**
 
 [![Release](https://img.shields.io/github/v/release/valentineonuchukwu48-ship-it/mediavault?include_prereleases&logo=github&label=release)](https://github.com/valentineonuchukwu48-ship-it/mediavault/releases)
 [![Tests](https://img.shields.io/github/actions/workflow/status/valentineonuchukwu48-ship-it/mediavault/ci.yml?branch=main&label=tests&logo=github)](https://github.com/valentineonuchukwu48-ship-it/mediavault/actions/workflows/ci.yml)
 [![Platform](https://img.shields.io/badge/Windows_%7C_macOS_%7C_Linux_%7C_Android-lightgrey?logo=windows95)](https://github.com/valentineonuchukwu48-ship-it/mediavault/releases)
+[![Downloads](https://img.shields.io/github/downloads/valentineonuchukwu48-ship-it/mediavault/total?logo=github&label=downloads)](https://github.com/valentineonuchukwu48-ship-it/mediavault/releases)
+[![Docs](https://img.shields.io/badge/docs-DOCUMENTATION.md-blue?logo=)](https://github.com/valentineonuchukwu48-ship-it/mediavault/blob/main/docs/DOCUMENTATION.md)
+
+| ![PDF dossier studio](docs/screenshots/dossier.png) |
+|:---:|
+| *Posts become tamper-evident PDF dossiers — cover, table of contents, QR verification.* |
+
+| ![Click → popup](docs/screenshots/popup.png) | ![Media Vault](docs/screenshots/vault.png) |
+|:---:|:---:|
+| ***Click any item** → fullscreen → copy to clipboard (paste into WhatsApp), share, or save.* | *Media Vault: search your folders by name/date, arrange everything by date — with undo.* |
 
 **MediaVault** is a **local-first media vault** for your photos, videos and important documents — built by [Valentine Onuchukwu](https://github.com/valentineonuchukwu48-ship-it) (ProsperChild Technology). Everything runs on your own machine: no account, no server, your files never leave your computer.
 

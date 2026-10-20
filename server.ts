@@ -443,8 +443,6 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
     ? rawInput
     : `<iframe src="${pluginUrl}" width="500" height="607" style="border:none;overflow:hidden" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"></iframe>`;
 
-  const isPromptMathPost = meta.fbid === '122129387847098460' || originalHref.includes('122129387847098460');
-
   try {
     const res = await fetch(pluginUrl, {
       headers: {
@@ -567,18 +565,24 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
       const commentsMatch = html.match(/title=["']Comment["'][^>]*>.*?([0-9,]+)<\/div>/);
       const sharesMatch = html.match(/title=["']Share["'][^>]*>.*?([0-9,]+)<\/div>/);
 
-      const likes = likesMatch ? parseInt(likesMatch[1].replace(/,/g, '')) : 142;
-      const comments = commentsMatch ? parseInt(commentsMatch[1].replace(/,/g, '')) : 38;
-      const shares = sharesMatch ? parseInt(sharesMatch[1].replace(/,/g, '')) : 12;
+      // 5. Reactions & Counters — read only when Facebook actually shows them.
+      // Unknown stays unknown ("no data"), never a placeholder number.
+      const likes = likesMatch ? parseInt(likesMatch[1].replace(/,/g, '')) : undefined;
+      const comments = commentsMatch ? parseInt(commentsMatch[1].replace(/,/g, '')) : undefined;
+      const shares = sharesMatch ? parseInt(sharesMatch[1].replace(/,/g, '')) : undefined;
 
       // 6. Post Images
       const images: string[] = [];
       const imgMatches = Array.from(html.matchAll(/<img[^>]*src=["']([^"']*)["'][^>]*>/g)).map((m) =>
         m[1].replace(/&amp;/g, '&')
       );
+      // Demo/lab posts (served from our own /demo route) keep their images;
+      // for real posts, never attach a stock photo the author didn't publish.
+      const isDemoRel = originalHref.startsWith('/demo');
       for (const src of imgMatches) {
         if (
-          (src.includes('fbcdn.net') || src.includes('scontent')) &&
+          (!isDemoRel || src.includes('/demo/')) &&
+          (src.includes('fbcdn.net') || src.includes('scontent') || src.startsWith('/demo/')) &&
           !src.includes('emoji.php') &&
           !src.includes('rsrc.php') &&
           !src.includes('s200x200')
@@ -589,33 +593,17 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
         }
       }
 
-      // If Math problem set, enrich caption with worksheet solutions
-      if (isPromptMathPost) {
-        const problemSummary =
-          '\n\nWorksheet Problem Set Questions & Answers:\n' +
-          '8. Socks Probability: You own thirteen pairs of socks. How many must you pull out to guarantee having a matching pair?\n' +
-          'Answer: (d) 14 socks (Pigeonhole principle).\n\n' +
-          '9. Gold/Silver Concentration: 20g ring (60% gold, 40% silver). How many grams of gold needed to reach 80% gold?\n' +
-          'Answer: (e) 20 grams.\n\n' +
-          '10 & 11. Referee card permutations and elimination logic puzzle.\n' +
-          '(Full solutions in attached worksheet pages).';
-
-        if (!fullContent.includes('Worksheet Problem Set')) {
-          fullContent = (fullContent || 'Mathematics Review (With Explanation) - MARCH 2027 CIVIL SERVICE EXAM Reviewer') + problemSummary;
-        }
-      }
-
       if (images.length > 0 || (fullContent && fullContent.length > 0)) {
         return {
           id: meta.fbid || `embed_${Date.now()}`,
           url: originalHref,
           authorName: author,
           authorHandle: `@${author.toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-          authorAvatar: authorAvatar || '/demo/fb_author_avatar_1791644771333.jpg',
+          authorAvatar: authorAvatar || '',
           isVerified: true,
           postDate: dateStr,
-          postContent: fullContent || 'Facebook post with photo attachments',
-          images: images.length > 0 ? images : ['/demo/fb_math_worksheet_1791646396764.jpg'],
+          postContent: fullContent || '',
+          images,
           likesCount: likes,
           commentsCount: comments,
           sharesCount: shares,
@@ -632,32 +620,8 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
     console.warn('Embed plugin scraper error:', err);
   }
 
-  // Graceful Fallback if Facebook live plugin is blocked
-  if (isPromptMathPost) {
-    return {
-      id: '122129387847098460',
-      url: originalHref,
-      authorName: 'Civil Service Exam Reviewers',
-      authorHandle: '@civilserviceexamreviewers',
-      authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
-      isVerified: true,
-      postDate: 'October 8, 2026',
-      postContent:
-        'Mathematics Review (With Explanation) Review \n - MARCH 2027 CIVIL SERVICE EXAM Reviewer -\n\nFor more FREE reviewers and exam updates, just follow this page.\n\nWorksheet Problem Set Solutions:\n8. Socks Probability: You own thirteen pairs of socks. How many must you pull out to guarantee having a matching pair?\nAnswer: (d) 14 socks.\n\n9. Gold/Silver Concentration: 20g ring (60% gold, 40% silver). How many grams of gold needed to reach 80% gold?\nAnswer: (e) 20 grams.\n\n10 & 11. Referee card permutations and elimination logic puzzle.\n\nFull step-by-step solutions in attached worksheet.',
-      images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
-      likesCount: 184,
-      commentsCount: 38,
-      sharesCount: 14,
-      privacy: 'public',
-      isProtected: false,
-      extractedSource: 'embed_plugin',
-      iframeCode: iframeCodeString,
-      embedUrl: pluginUrl,
-      fetchedAt: new Date().toISOString(),
-    };
-  }
-
-  // Return formatted archival fallback
+  // Honest fallback when the live embed is blocked: a labelled record with
+  // only what we actually know — no invented text, photos or counters.
   return {
     id: meta.fbid || `embed_${Date.now()}`,
     url: originalHref,
@@ -666,10 +630,7 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
     isVerified: true,
     postDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     postContent: `Facebook Embed Post [ID: ${meta.fbid}]\n\nExtracted from iframe embed code. Post contents, metadata, and link preserved for PDF export.`,
-    images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
-    likesCount: 95,
-    commentsCount: 14,
-    sharesCount: 5,
+    images: [],
     privacy: 'public',
     isProtected: false,
     extractedSource: 'embed_code',
@@ -818,9 +779,6 @@ app.post('/api/fetch-facebook', async (req, res) => {
   // Build post record
   let postRecord: any;
 
-  // If the user entered the specific prompt link:
-  const isPromptDemoLink = fbid === '122129387847098460' || rawInput.includes('122129387847098460');
-
   if (scraped && !isLoginGate) {
     postRecord = {
       id: fbid || `fb_${Date.now()}`,
@@ -831,35 +789,13 @@ app.post('/api/fetch-facebook', async (req, res) => {
       postContent: ogDescription || ogTitle,
       images: ogImage ? [ogImage] : [],
       // Facebook never exposes engagement counts to logged-out crawlers; leave
-      // them at 0 rather than inventing numbers in an "archival" document.
-      likesCount: 0,
-      commentsCount: 0,
-      sharesCount: 0,
+      // them undefined so the UI shows "no data" rather than invented numbers.
+      likesCount: undefined,
+      commentsCount: undefined,
+      sharesCount: undefined,
       privacy: 'public',
       isProtected: false,
       extractedSource: 'og_crawler',
-      fetchedAt: new Date().toISOString(),
-    };
-  } else if (isPromptDemoLink) {
-    // Exact post matching user's Facebook screenshot (fbid: 122129387847098460)
-    postRecord = {
-      id: '122129387847098460',
-      url: rawInput,
-      authorName: 'Obiajulu Onuchukwu',
-      authorHandle: '@obiajulu.onuchukwu',
-      authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
-      postDate: 'October 10, 2026 at 11:42 AM',
-      postContent:
-        'Mathematics & Logic Problem Set Solutions:\n\n8. Socks Probability: You own thirteen pairs of socks. How many must you pull out to guarantee having a matching pair?\nAnswer: (d) 14 socks.\n\n9. Gold/Silver Concentration: 20g ring (60% gold, 40% silver). How many grams of gold needed to reach 80% gold?\nAnswer: (e) 20 grams.\n\n10 & 11. Referee card permutations and elimination logic puzzle.\n\nFull step-by-step solutions in attached worksheet.',
-      images: [
-        '/demo/fb_math_worksheet_1791646396764.jpg',
-      ],
-      likesCount: 342,
-      commentsCount: 47,
-      sharesCount: 19,
-      privacy: 'public',
-      isProtected: false,
-      extractedSource: 'sample_template',
       fetchedAt: new Date().toISOString(),
     };
   } else {
@@ -925,6 +861,7 @@ app.post('/api/fetch-multiple-embeds', async (req, res) => {
     } catch (e) {
       console.warn('Failed to extract embed item:', e);
       // Fallback
+      // Fallback — only what is actually known; no invented photos or counters
       const meta = extractFacebookMetadata(item);
       extractedPosts.push({
         id: meta.fbid || `embed_${Date.now()}`,
@@ -934,10 +871,7 @@ app.post('/api/fetch-multiple-embeds', async (req, res) => {
         isVerified: true,
         postDate: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         postContent: `Facebook Embed Post [ID: ${meta.fbid}]`,
-        images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
-        likesCount: 95,
-        commentsCount: 14,
-        sharesCount: 5,
+        images: [],
         privacy: 'public',
         isProtected: false,
         extractedSource: 'embed_code',

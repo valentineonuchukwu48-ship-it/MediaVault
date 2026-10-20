@@ -72,7 +72,7 @@ export const MobileInstallBar: React.FC = () => {
         <Smartphone className="w-5 h-5 text-cyan-300 mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-semibold text-white leading-snug">
-            Install Ultimate Media Vault on your phone
+            Install MediaVault on your phone
           </p>
           {installable ? (
             <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5">

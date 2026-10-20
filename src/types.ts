@@ -17,9 +17,9 @@ export interface FacebookPost {
   postDate: string;
   postContent: string;
   images: string[];
-  likesCount: number;
-  commentsCount: number;
-  sharesCount: number;
+  likesCount?: number;
+  commentsCount?: number;
+  sharesCount?: number;
   reactions?: {
     like?: number;
     love?: number;
@@ -31,7 +31,7 @@ export interface FacebookPost {
   };
   privacy: 'public' | 'friends' | 'only_me';
   isProtected?: boolean;
-  extractedSource?: 'live_scrape' | 'og_crawler' | 'sample_template' | 'manual' | 'url_params' | 'embed_plugin' | 'embed_code';
+  extractedSource?: 'live_scrape' | 'og_crawler' | 'sample_template' | 'manual' | 'url_params' | 'embed_plugin' | 'embed_code' | 'demo';
   iframeCode?: string;
   embedUrl?: string;
   fetchedAt: string;

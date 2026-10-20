@@ -303,7 +303,7 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
               className="px-2.5 py-1 bg-slate-750 hover:bg-slate-700 text-blue-300 hover:text-white rounded-md border border-slate-600/60 transition-colors flex items-center gap-1.5 font-mono text-[11px]"
             >
               <Sparkles className="w-3 h-3 text-amber-400" />
-              <span>Math Worksheet (fbid: 122129387847098460)</span>
+              <span>Sample: grab a post live</span>
             </button>
           </div>
         </div>

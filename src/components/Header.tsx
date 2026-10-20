@@ -34,10 +34,10 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <div className="flex flex-col">
             <span className="text-sm sm:text-base font-bold tracking-tight text-white whitespace-nowrap">
-              FaceStudio &middot; Video &amp; PDF
+              MediaVault &middot; Archive &amp; PDF
             </span>
             <span className="text-[11px] text-slate-400 font-mono tracking-tight -mt-0.5 whitespace-nowrap">
-              Facebook Video Merger &amp; Archival Suite
+              Facebook posts &amp; videos — saved provably on your PC
             </span>
           </div>
         </div>

@@ -96,7 +96,7 @@ export const CoverSheet: React.FC<CoverSheetProps> = ({ posts, settings }) => {
 
       {/* Footer Notice */}
       <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[11px] text-slate-500 font-mono">
-        <span>ARCHIVE ENGINE: FacePDF Archiver v2.4</span>
+        <span>ARCHIVE ENGINE: MediaVault</span>
         <span>SECURITY: VERIFIED INTEGRITY</span>
       </div>
     </div>

@@ -270,7 +270,7 @@ export async function generateCombinedPdf(
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8);
       pdf.setTextColor(148, 163, 184);
-      pdf.text('ARCHIVE ENGINE: Ultimate Media Vault · Zero-Proof Archival', 15, pageHeight - 12);
+      pdf.text('ARCHIVE ENGINE: MediaVault · Zero-Proof Archival', 15, pageHeight - 12);
     }
   }
 
@@ -469,7 +469,7 @@ export async function generateCombinedPdf(
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8.5);
       pdf.setTextColor(71, 85, 105);
-      const engagementText = `Likes: ${post.likesCount || 0}   Comments: ${post.commentsCount || 0}   Shares: ${post.sharesCount || 0}`;
+      const engagementText = `Likes: ${post.likesCount ?? '—'}   Comments: ${post.commentsCount ?? '—'}   Shares: ${post.sharesCount ?? '—'}`;
       pdf.text(engagementText, marginX + 2, currentY);
 
       currentY += 8;

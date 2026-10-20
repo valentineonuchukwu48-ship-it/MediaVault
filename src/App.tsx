@@ -24,64 +24,27 @@ import { Layers } from 'lucide-react';
 
 const initialPosts: FacebookPost[] = [
   {
-    id: '122129387847098460',
-    url: 'https://web.facebook.com/photo?fbid=122129387847098460&set=pcb.122129389287098460',
-    authorName: 'Obiajulu Onuchukwu',
-    authorHandle: '@obiajulu.onuchukwu',
+    id: 'sample-post-1',
+    url: 'https://developers.facebook.com/docs/plugins/embedded-posts (sample)',
+    authorName: 'Sample Page — demo data',
+    authorHandle: '@sample.page',
     authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
     isVerified: true,
-    postDate: 'October 10, 2026 at 11:42 AM',
+    postDate: 'Sample — January 2026',
     postContent:
-      'Mathematics & Logic Problem Set Solutions:\n\n8. Socks Probability: You own thirteen pairs of socks, all different, and all jumbled in a drawer. How many must you pull out to guarantee having a matching pair?\nAnswer: (d) 14 socks.\n\n9. Gold/Silver Concentration: 20 gram ring with 60% gold. How much gold must be added to reach 80% gold?\nAnswer: (e) 20 grams.\n\n10 & 11. Referee card game permutations and elimination logic puzzle.\n\nFull step-by-step solutions in attached worksheet.',
-    images: ['/demo/fb_math_worksheet_1791646396764.jpg'],
-    likesCount: 342,
-    commentsCount: 47,
-    sharesCount: 19,
+      'This is a built-in SAMPLE post that shows how MediaVault presents an archived Facebook post: text, photos, the verification strip with QR, and the PDF dossier.\n\nEverything on this card is synthetic — no real account, post or engagement numbers. Delete it (✕ in the deck) or grab your first real Facebook post from the left panel to start your archive.',
+    images: ['/demo/fb_post_keynote_1791644787103.jpg'],
     privacy: 'public',
     isProtected: false,
-    extractedSource: 'sample_template',
+    extractedSource: 'demo',
     fetchedAt: new Date().toISOString(),
     comments: [
       {
         id: 'c1',
-        author: 'Sarah Jenkins',
-        text: 'The explanation for problem 9 with the gold concentration formula was so clear!',
-        time: '2h',
-        likes: 12,
-      },
-      {
-        id: 'c2',
-        author: 'David Chen',
-        text: 'Problem 8 pigeonhole principle classic! Always 13 + 1 = 14.',
-        time: '1h',
-        likes: 5,
-      },
-    ],
-  },
-  {
-    id: '122129389287098460',
-    url: 'https://web.facebook.com/photo?fbid=122129389287098460&set=pcb.122129389287098460',
-    authorName: 'Global Tech Summit 2026',
-    authorHandle: '@globaltechsummit',
-    isVerified: true,
-    postDate: 'October 9, 2026 at 3:15 PM',
-    postContent:
-      'What an inspiring day exploring the future of technology, impact, and design ethics! Grateful for our brilliant speakers and engaged participants from over 45 countries. 🎙️💡 #TechSummit2026 #Innovation #Keynote',
-    images: ['/demo/fb_post_keynote_1791644787103.jpg'],
-    likesCount: 820,
-    commentsCount: 94,
-    sharesCount: 65,
-    privacy: 'public',
-    isProtected: false,
-    extractedSource: 'sample_template',
-    fetchedAt: new Date().toISOString(),
-    comments: [
-      {
-        id: 'c3',
-        author: 'Marcus Vance',
-        text: 'Best session of the week! The insights on architecture were spot on.',
-        time: '3h',
-        likes: 18,
+        author: 'Sample Reader (demo)',
+        text: 'This comment is part of the sample so the dossier shows its comments section too.',
+        time: '',
+        likes: 0,
       },
     ],
   },
@@ -109,8 +72,20 @@ export default function App() {
   const [editingPost, setEditingPost] = useState<FacebookPost | null>(null);
   const [settings, setSettings] = useState<ExportSettings>(defaultSettings);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'preview' | 'queue' | 'settings'>('preview');
-  const [appMode, setAppMode] = useState<'media_vault' | 'video_studio' | 'pdf_dossier' | 'ai_chat'>('video_studio');
+  // Deep links: ?mode=media_vault|video_studio|pdf_dossier|ai_chat and
+  // ?tab=preview|queue|settings preselect the panel — links can be shared,
+  // e.g. http://127.0.0.1:3000/?mode=media_vault lands straight in the vault.
+  const PARAMS = new URLSearchParams(window.location.search);
+  const MODES = ['media_vault', 'video_studio', 'pdf_dossier', 'ai_chat'] as const;
+  const TABS = ['preview', 'queue', 'settings'] as const;
+  const paramMode = PARAMS.get('mode');
+  const paramTab = PARAMS.get('tab');
+  const [activeTab, setActiveTab] = useState<'preview' | 'queue' | 'settings'>(
+    (paramTab && TABS.includes(paramTab as 'preview')) ? (paramTab as 'preview') : 'preview'
+  );
+  const [appMode, setAppMode] = useState<(typeof MODES)[number]>(
+    (paramMode && MODES.includes(paramMode as (typeof MODES)[number])) ? (paramMode as (typeof MODES)[number]) : 'video_studio'
+  );
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
 
   // Reference to export combined PDF
@@ -132,8 +107,8 @@ export default function App() {
             if (file) {
               handleUploadImageAndExportPdf(
                 file,
-                'Obiajulu Onuchukwu',
-                'Facebook photo worksheet upload'
+                'Archive Author',
+                'Uploaded Facebook photo / screenshot'
               );
               return;
             }
@@ -228,7 +203,7 @@ export default function App() {
   // Upload an image / screenshot and convert directly to PDF
   const handleUploadImageAndExportPdf = async (
     file: File,
-    authorName = 'Obiajulu Onuchukwu',
+    authorName = 'Archive Author',
     caption = 'Uploaded Facebook Post / Photo'
   ): Promise<void> => {
     setIsLoading(true);
@@ -242,10 +217,10 @@ export default function App() {
 
       const newPost: FacebookPost = {
         id: `upload_${Date.now()}`,
-        url: 'https://web.facebook.com/photo?fbid=122129387847098460',
-        authorName: authorName.trim() || 'Obiajulu Onuchukwu',
+        url: 'uploaded-photo://local',
+        authorName: authorName.trim() || 'Archive Author',
         authorHandle: `@${(authorName || 'user').toLowerCase().replace(/[^a-z0-9]/g, '')}`,
-        authorAvatar: '/demo/fb_author_avatar_1791644771333.jpg',
+        authorAvatar: '',
         isVerified: true,
         postDate: new Date().toLocaleDateString('en-US', {
           month: 'long',
@@ -254,11 +229,8 @@ export default function App() {
           hour: '2-digit',
           minute: '2-digit',
         }),
-        postContent: caption.trim() || 'Facebook photo worksheet upload',
+        postContent: caption.trim() || 'Uploaded photo archived as evidence',
         images: [dataUrl],
-        likesCount: 142,
-        commentsCount: 18,
-        sharesCount: 7,
         privacy: 'public',
         isProtected: false,
         extractedSource: 'manual',
@@ -600,7 +572,7 @@ export default function App() {
       {/* Author credit */}
       <footer className="no-print mt-10 mb-4 text-center text-[11px] leading-relaxed text-slate-500">
         <p className="font-semibold tracking-wide text-slate-400">
-          Ultimate Media Vault · by Valentine Onuchukwu
+          MediaVault · by Valentine Onuchukwu
         </p>
         <p>
           ProsperChild Technology ·{' '}

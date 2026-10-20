@@ -178,9 +178,9 @@ export const PostQueueList: React.FC<PostQueueListProps> = ({
                   </p>
 
                   <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400 font-mono">
-                    <span>{post.likesCount} likes</span>
+                    <span>{post.likesCount ?? '—'} likes</span>
                     <span>·</span>
-                    <span>{post.commentsCount} comments</span>
+                    <span>{post.commentsCount ?? '—'} comments</span>
                     {post.images.length > 0 && (
                       <>
                         <span>·</span>

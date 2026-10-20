@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Copy, Check, Share2, Download, ChevronLeft, ChevronRight, X, Video } from 'lucide-react';export interface LightboxItem {
   /** Full-size image/video URL. Absolute http(s) Facebook URLs are auto-proxied. */
   src: string;
@@ -137,7 +138,9 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({ items, index, onIn
   if (!item) return null;
   const isPhoto = item.kind === 'photo';
 
-  return (
+  // Portal to <body>: ancestors with CSS transforms (preview zoom) would
+  // otherwise trap position:fixed and clip the fullscreen overlay.
+  return createPortal(
     <div className="fixed inset-0 z-[90] bg-black/85 backdrop-blur-sm flex flex-col" onClick={onClose}>
       {/* Title bar */}
       <div
@@ -222,6 +225,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({ items, index, onIn
           <span className="text-[10.5px] text-slate-500">Videos play right here — Share or Save to send them on.</span>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

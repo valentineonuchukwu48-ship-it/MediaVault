@@ -389,14 +389,14 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
               </div>
             </div>
             <span className="font-medium text-slate-700 ml-1">
-              {post.likesCount?.toLocaleString() || '142'}
+              {post.likesCount?.toLocaleString() ?? '—'}
             </span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span>{post.commentsCount?.toLocaleString() || '28'} comments</span>
+            <span>{post.commentsCount?.toLocaleString() ?? '—'} comments</span>
             <span>·</span>
-            <span>{post.sharesCount?.toLocaleString() || '12'} shares</span>
+            <span>{post.sharesCount?.toLocaleString() ?? '—'} shares</span>
           </div>
         </div>
       )}

@@ -22,6 +22,19 @@ Created by **Valentine Onuchukwu** — ProsperChild Technology.
 - Unsigned build: right-click the app → **Open** the first time.
 - Apple Silicon (M1/M2/M3/M4) only.
 
+## ✨ NEW — Honest data, one brand, deep links (v2.1.0)
+
+- **No invented numbers, ever.** When Facebook won't disclose engagement counts
+  the card (and the PDF) now show **"—"** instead of placeholder likes/shares,
+  and demo posts are clearly labelled **"demo data"**. Archival integrity: what
+  you were not told is not printed.
+- **One name everywhere:** MediaVault across the app, installers, verifier
+  bundle and PDFs.
+- **Deep links:** open straight into any panel — `?mode=media_vault`,
+  `?mode=pdf_dossier&tab=settings` — shareable links for teams and tutorials.
+- The popup got sturdier too: it now renders through a portal, so the
+  transform-zoomed PDF preview can no longer trap it.
+
 ## 👆 NEW — Click any item: popup → copy / share / save (v2.0.1)
 
 Search a folder of photos/videos or open a saved post, then **click it** — a fullscreen
