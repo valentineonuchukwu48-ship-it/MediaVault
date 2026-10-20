@@ -9,9 +9,12 @@ import {
   CheckCircle2,
   MoreHorizontal,
   ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { FacebookPost, ExportSettings } from '../types';
 import { generateQrDataUrl } from '../utils/qr';
+import { MediaLightbox, type LightboxItem } from './MediaLightbox';
 
 interface FacebookPostCardProps {
   post: FacebookPost;
@@ -28,6 +31,37 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [showLiveIframe, setShowLiveIframe] = useState<boolean>(false);
+  // Popup viewer for the post's photos + quick copy/share of the post text.
+  const [lbIndex, setLbIndex] = useState<number | null>(null);
+  const [textStatus, setTextStatus] = useState<'' | 'copied'>('');
+
+  const postImages: LightboxItem[] = (post.images || []).map((src, idx) => ({
+    src,
+    name: (() => {
+      try {
+        const base = src.startsWith('data:') ? '' : decodeURIComponent(src.split('?')[0].split('/').pop() || '');
+        if (base && /\.[a-z0-9]{2,5}$/i.test(base)) return base;
+      } catch { /* keep fallback */ }
+      return `${(post.authorName || 'post').slice(0, 24)} photo ${idx + 1}`;
+    })(),
+    kind: 'photo' as const,
+  }));
+  const openImage = (idx: number): void => setLbIndex(idx);
+
+  const copyPostText = async (): Promise<void> => {
+    if (!post.postContent || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(post.postContent);
+      setTextStatus('copied');
+    } catch { /* selection fallback: the text is visible above */ }
+  };
+
+  const sharePostText = async (): Promise<void> => {
+    if (!post.postContent) return;
+    try {
+      await navigator.share({ text: post.postContent, title: post.authorName || 'Facebook post' });
+    } catch { /* user cancelled or unsupported */ }
+  };
 
   useEffect(() => {
     if (settings.includeQrCode && post.url) {
@@ -211,6 +245,27 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
           </div>
         )}
 
+        {/* Quick actions: copy the text, or share it straight to any app */}
+        {post.postContent && (
+          <div className="px-4 sm:px-5 pb-3 flex flex-wrap gap-2 print:hidden">
+            <button
+              onClick={() => void copyPostText()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10.5px] font-semibold text-white bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 transition-all"
+            >
+              {textStatus === 'copied' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {textStatus === 'copied' ? 'Copied — paste away' : 'Copy post text'}
+            </button>
+            {typeof navigator.share === 'function' && (
+              <button
+                onClick={() => void sharePostText()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10.5px] font-semibold text-white bg-emerald-600/90 hover:bg-emerald-500 transition-all"
+              >
+                <Share2 className="w-3 h-3" /> Share post (WhatsApp)
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Responsive Photo Gallery */}
         {post.images && post.images.length > 0 && (
           <div className="w-full bg-slate-950 overflow-hidden border-y border-slate-100">
@@ -219,7 +274,8 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                 <img
                   src={post.images[0]}
                   alt="Post attachment"
-                  className="w-full h-auto max-h-[840px] object-contain mx-auto"
+                  className="w-full h-auto max-h-[840px] object-contain mx-auto cursor-zoom-in"
+                  onClick={() => openImage(0)}
                   referrerPolicy="no-referrer"
                 />
               </div>
@@ -232,7 +288,8 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                     key={idx}
                     src={img}
                     alt={`Photo ${idx + 1}`}
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-95"
+                    className="w-full h-full object-cover cursor-zoom-in hover:opacity-95"
+                    onClick={() => openImage(idx)}
                     referrerPolicy="no-referrer"
                   />
                 ))}
@@ -245,7 +302,8 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                   <img
                     src={post.images[0]}
                     alt="Primary photo"
-                    className="w-full h-full object-cover cursor-pointer"
+                    className="w-full h-full object-cover cursor-zoom-in"
+                    onClick={() => openImage(0)}
                     referrerPolicy="no-referrer"
                   />
                 </div>
@@ -254,7 +312,8 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                     <img
                       src={img}
                       alt={`Photo ${idx + 2}`}
-                      className="w-full h-full object-cover cursor-pointer"
+                      className="w-full h-full object-cover cursor-zoom-in"
+                      onClick={() => openImage(idx + 1)}
                       referrerPolicy="no-referrer"
                     />
                   </div>
@@ -270,7 +329,8 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                       <img
                         src={img}
                         alt={`Photo ${idx + 1}`}
-                        className="w-full h-full object-cover cursor-pointer"
+                        className="w-full h-full object-cover cursor-zoom-in"
+                        onClick={() => openImage(idx)}
                         referrerPolicy="no-referrer"
                       />
                       {idx === 3 && post.images.length > 4 && (
@@ -292,11 +352,9 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                       All {post.images.length} Photos:
                     </span>
                     {post.images.map((img, idx) => (
-                      <a
+                      <button
                         key={idx}
-                        href={img}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        onClick={() => openImage(idx)}
                         className="relative w-12 h-12 rounded border border-slate-700 overflow-hidden shrink-0 group"
                         title={`Worksheet Photo ${idx + 1} - click to view high-res`}
                       >
@@ -309,7 +367,7 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
                         <span className="absolute bottom-0 right-0 bg-black/70 text-white text-[9px] px-1 font-mono">
                           #{idx + 1}
                         </span>
-                      </a>
+                      </button>
                     ))}
                   </div>
                 )}
@@ -419,6 +477,14 @@ export const FacebookPostCard: React.FC<FacebookPostCardProps> = ({
           </div>
         )}
       </div>
+      {lbIndex !== null && postImages.length > 0 && (
+        <MediaLightbox
+          items={postImages}
+          index={lbIndex}
+          onIndex={setLbIndex}
+          onClose={() => setLbIndex(null)}
+        />
+      )}
     </div>
   );
 };

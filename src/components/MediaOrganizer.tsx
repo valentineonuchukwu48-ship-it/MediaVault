@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { FolderOpen, CalendarDays, Image, Video, ScanSearch, MoveRight, Undo2, AlertTriangle, HardDrive, Search, X } from 'lucide-react';
+import { MediaLightbox, type LightboxItem } from './MediaLightbox';
 
 interface MediaFileVersion {
   name: string;
@@ -80,6 +81,15 @@ export const MediaOrganizer: React.FC = () => {
   const [query, setQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // Popup viewer: click any search hit or timeline tile to open it big.
+  const [lbItems, setLbItems] = useState<LightboxItem[] | null>(null);
+  const [lbIndex, setLbIndex] = useState(0);
+
+  const toLbItem = (f: MediaFileVersion): LightboxItem => ({
+    src: scan ? `/api/media/file?rootId=${scan.rootId}&p=${encodeURIComponent(f.rel)}` : f.rel,
+    name: f.name,
+    kind: f.kind,
+  });
 
   const filtered = useMemo(() => {
     if (!scan) return null;
@@ -102,9 +112,24 @@ export const MediaOrganizer: React.FC = () => {
     for (const file of scan.files) {
       if (!file.date) continue;
       const month = file.date.slice(0, 7);
-      if (file.kind !== 'photo') continue;
       const list = map.get(month) || [];
-      if (list.length < 6) list.push(file.rel);
+      if (file.kind === 'photo') {
+        if (list.length < 6) list.push(file.rel);
+        map.set(month, list);
+      }
+    }
+    return map;
+  }, [scan]);
+
+  // Real video files per month, so timeline video tiles can open in the popup too.
+  const videoByMonth = useMemo(() => {
+    if (!scan) return new Map<string, string[]>();
+    const map = new Map<string, string[]>();
+    for (const file of scan.files) {
+      if (!file.date || file.kind !== 'video') continue;
+      const month = file.date.slice(0, 7);
+      const list = map.get(month) || [];
+      if (list.length < 3) list.push(file.rel);
       map.set(month, list);
     }
     return map;
@@ -346,10 +371,14 @@ export const MediaOrganizer: React.FC = () => {
             <p className="text-[10.5px] text-slate-500 pt-2">Showing the 600 newest of {filtered.items.length.toLocaleString()} matches.</p>
           )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 max-h-[480px] overflow-y-auto pr-1">
-            {filtered.shown.map((f) => {
+            {filtered.shown.map((f, resultIdx) => {
               const badge = SOURCE_BADGE[f.dateSource];
               return (
-                <div key={f.rel} className="flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-2.5">
+                <div
+                  key={f.rel}
+                  onClick={() => { setLbItems(filtered.shown.map((x) => toLbItem(x))); setLbIndex(resultIdx); }}
+                  className="cursor-pointer flex items-start gap-3 rounded-xl border border-slate-800 bg-slate-900/80 p-2.5 hover:border-cyan-600/50 hover:bg-slate-800/70 transition-colors"
+                >
                   {f.kind === 'photo' ? (
                     <img
                       src={`/api/media/file?rootId=${scan.rootId}&p=${encodeURIComponent(f.rel)}`}
@@ -369,6 +398,7 @@ export const MediaOrganizer: React.FC = () => {
                       <span className={`px-1.5 py-0.5 rounded text-[9px] font-semibold ${badge.cls}`}>{badge.label}</span>
                       <span className="text-[9.5px] text-slate-500">{prettyBytes(f.size)}</span>
                     </div>
+                    <p className="text-[9.5px] text-cyan-400/70 mt-1">Click to open &amp; copy / share / save</p>
                   </div>
                 </div>
               );
@@ -414,23 +444,32 @@ export const MediaOrganizer: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex gap-2 p-3 overflow-x-auto no-scrollbar">
-                  {(thumbsByMonth.get(m.month) || []).map((rel) => (
-                    <img
-                      key={rel}
-                      src={`/api/media/file?rootId=${scan.rootId}&p=${encodeURIComponent(rel)}`}
-                      alt=""
-                      loading="lazy"
-                      className="h-20 w-20 rounded-lg object-cover border border-slate-700/60 shrink-0"
-                    />
-                  ))}
-                  {Array.from({ length: m.videos }).slice(0, 3).map((_, i) => (
-                    <span
-                      key={`v${i}`}
-                      className="h-20 w-20 rounded-lg bg-indigo-950/60 border border-indigo-800/50 shrink-0 flex items-center justify-center"
-                    >
-                      <Video className="w-6 h-6 text-indigo-300/80" />
-                    </span>
-                  ))}
+                  {(thumbsByMonth.get(m.month) || []).map((rel) => {
+                    const photoFile = scan.files.find((x) => x.rel === rel);
+                    return (
+                      <img
+                        key={rel}
+                        src={`/api/media/file?rootId=${scan.rootId}&p=${encodeURIComponent(rel)}`}
+                        alt=""
+                        loading="lazy"
+                        onClick={() => { if (!photoFile) return; setLbItems([toLbItem(photoFile)]); setLbIndex(0); }}
+                        className="h-20 w-20 rounded-lg object-cover border border-slate-700/60 shrink-0 cursor-pointer hover:border-cyan-500/60 transition-colors"
+                      />
+                    );
+                  })}
+                  {(videoByMonth.get(m.month) || []).map((rel) => {
+                    const vFile = scan.files.find((x) => x.rel === rel);
+                    return (
+                      <span
+                        key={rel}
+                        title={vFile?.name}
+                        onClick={() => { if (!vFile) return; setLbItems([toLbItem(vFile)]); setLbIndex(0); }}
+                        className="h-20 w-20 rounded-lg bg-indigo-950/60 border border-indigo-800/50 shrink-0 flex items-center justify-center cursor-pointer hover:border-indigo-400/60 transition-colors"
+                      >
+                        <Video className="w-6 h-6 text-indigo-300/80" />
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -472,6 +511,16 @@ export const MediaOrganizer: React.FC = () => {
         <p className="text-[11px] text-rose-300 flex items-center gap-1.5">
           <AlertTriangle className="w-3.5 h-3.5" /> {applyError}
         </p>
+      )}
+
+      {/* Media popup — click any search hit or timeline tile */}
+      {lbItems && lbItems.length > 0 && (
+        <MediaLightbox
+          items={lbItems}
+          index={lbIndex}
+          onIndex={setLbIndex}
+          onClose={() => setLbItems(null)}
+        />
       )}
 
       {/* Confirm dialog */}
