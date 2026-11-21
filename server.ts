@@ -17,6 +17,7 @@ import {
   addVoiceoverToVideo,
   saveVideoLocally,
   probeMedia,
+  resolveCookiesPath,
 } from './src/server/videoService';
 import {
   sealPost,
@@ -45,6 +46,7 @@ import {
   radarEventStream,
 } from './src/server/radar';
 import crypto from 'crypto';
+import { fetchAlbumImagesViaBrowser } from './src/server/albumBrowser';
 import { buildVerifierPage } from './src/server/verifierBundle';
 import {
   stampUnstampedEntries,
@@ -416,6 +418,21 @@ function extractFacebookMetadata(input: string) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Full-album support: the Embedded Post plugin only renders a short preview of
+// a multi-photo post (a handful of images + a "+N" tile). The complete gallery
+// lives in Facebook's photo viewer, reachable from that tile. We open it in a
+// clean, cookie-free headless browser, page through it and merge every photo
+// it exposes. No cookies, credentials or browser profile data are used.
+// ---------------------------------------------------------------------------
+
+/** Stable identity of a photo URL — ignores size/quality query variants. */
+function photoKey(url: string): string {
+  const clean = url.split('?')[0];
+  const m = clean.match(/\/(\d+_\d+_\d+)(?:_[a-z])?\.[a-z]+$/i);
+  return m ? m[1] : clean;
+}
+
 // Extract content directly from Facebook Embed Plugin
 async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
   const meta = extractFacebookMetadata(rawInput || targetUrl);
@@ -590,6 +607,27 @@ async function fetchFacebookEmbedPlugin(targetUrl: string, rawInput: string) {
           if (!images.includes(src)) {
             images.push(src);
           }
+        }
+      }
+
+      // 7. Full album. The plugin page holds only the preview photos. Open the
+      // public post in a fresh, cookie-free headless browser, follow its album
+      // viewer and append every photo it exposes. Failures keep the previews.
+      if (meta.cleanUrl) {
+        console.log(`[embed] expanding album for ${meta.cleanUrl} (${images.length} preview images)`);
+        const album = await fetchAlbumImagesViaBrowser(meta.cleanUrl, images.map(photoKey));
+        if (album.images.length) {
+          const known = new Set(images.map(photoKey));
+          for (const u of album.images) {
+            const k = photoKey(u);
+            if (!known.has(k)) {
+              known.add(k);
+              images.push(u);
+            }
+          }
+          console.log(`[embed] merged full album: ${images.length} images total (${album.images.length} from browser)`);
+        } else if (album.note) {
+          console.warn(`[embed] album expansion skipped: ${album.note}`);
         }
       }
 
@@ -887,6 +925,52 @@ app.post('/api/fetch-multiple-embeds', async (req, res) => {
     count: extractedPosts.length,
     posts: extractedPosts,
   });
+});
+
+// Browser-accessible Facebook cookies. The Desktop panel only exists inside
+// Electron, so plain-browser users need an HTTP way to provide the same
+// cookies.txt the full-album scraper reads.
+app.get('/api/facebook-cookies', (_req, res) => {
+  const file = resolveCookiesPath();
+  let cookieCount = 0;
+  if (file) {
+    try {
+      const text = fs.readFileSync(file, 'utf8');
+      cookieCount = text.split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#')).length;
+    } catch {}
+  }
+  res.json({ ok: true, configured: !!file, cookieCount });
+});
+
+app.post('/api/facebook-cookies', (req, res) => {
+  const raw = String((req.body && req.body.cookiesText) || '');
+  if (!raw.trim()) {
+    res.status(400).json({ error: 'cookiesText is required' });
+    return;
+  }
+  const dataLines = raw.split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
+  const fbLines = dataLines.filter((l) => /facebook\.com|fb\.com/i.test((l.split('\t')[0] || '')));
+  if (!fbLines.length) {
+    res.status(400).json({ error: 'No facebook.com cookies found in that file' });
+    return;
+  }
+  try {
+    ensureDataDirs();
+    fs.writeFileSync(path.join(DATA_DIR, 'cookies.txt'), raw.replace(/\r\n/g, '\n'));
+    res.json({ ok: true, cookieCount: fbLines.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Could not save cookies' });
+  }
+});
+
+app.delete('/api/facebook-cookies', (_req, res) => {
+  try {
+    const dest = path.join(DATA_DIR, 'cookies.txt');
+    if (fs.existsSync(dest)) fs.unlinkSync(dest);
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Could not clear cookies' });
+  }
 });
 
 // Music Generation Endpoint using Lyria (lyria-3-clip-preview / lyria-3-pro-preview)
