@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Download,
   Plus,
@@ -12,6 +12,8 @@ import {
   FileDown,
   Code,
   Layers,
+  Cookie,
+  Trash2,
 } from 'lucide-react';
 import { FacebookPost } from '../types';
 
@@ -21,7 +23,8 @@ interface UrlInputBarProps {
   onBatchGrab: (urls: string[]) => Promise<void>;
   onGrabMultipleEmbedsAndDownloadPdf: (embedsText: string) => Promise<void>;
   onAddMultipleEmbedsToDeck: (embedsText: string) => Promise<void>;
-  onUploadImageAndExportPdf: (file: File, authorName?: string, caption?: string) => Promise<void>;
+  onUploadImagesAndExportPdf: (files: File[], authorName?: string, caption?: string) => Promise<void>;
+  onDownloadImageUrls: (urlsText: string) => Promise<void>;
   isLoading: boolean;
   totalPosts: number;
 }
@@ -32,18 +35,68 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
   onBatchGrab,
   onGrabMultipleEmbedsAndDownloadPdf,
   onAddMultipleEmbedsToDeck,
-  onUploadImageAndExportPdf,
+  onUploadImagesAndExportPdf,
+  onDownloadImageUrls,
   isLoading,
   totalPosts,
 }) => {
-  const [activeMode, setActiveMode] = useState<'single_url' | 'embed_codes' | 'image_upload' | 'batch_urls'>('single_url');
+  const [activeMode, setActiveMode] = useState<'single_url' | 'embed_codes' | 'image_upload' | 'image_urls' | 'batch_urls' | 'cookies'>('single_url');
   const [url, setUrl] = useState('');
   const [batchUrlsText, setBatchUrlsText] = useState('');
+  const [imageUrlsText, setImageUrlsText] = useState('');
   const [embedsText, setEmbedsText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [cookiesText, setCookiesText] = useState('');
+  const [cookieStatus, setCookieStatus] = useState<{ configured: boolean; cookieCount: number } | null>(null);
+  const [cookieMsg, setCookieMsg] = useState('');
+
+  const refreshCookieStatus = async () => {
+    try {
+      const r = await fetch('/api/facebook-cookies');
+      if (r.ok) setCookieStatus(await r.json());
+    } catch {
+      /* engine offline */
+    }
+  };
+
+  useEffect(() => {
+    refreshCookieStatus();
+  }, []);
+
+  const saveCookies = async () => {
+    setCookieMsg('');
+    try {
+      const r = await fetch('/api/facebook-cookies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cookiesText }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setCookieMsg(data.error || 'Could not save cookies');
+        return;
+      }
+      setCookieMsg(`Saved ${data.cookieCount} facebook.com cookies — full post galleries are now available.`);
+      setCookiesText('');
+      await refreshCookieStatus();
+    } catch {
+      setCookieMsg('Could not reach the engine');
+    }
+  };
+
+  const clearCookies = async () => {
+    setCookieMsg('');
+    try {
+      await fetch('/api/facebook-cookies', { method: 'DELETE' });
+      setCookieMsg('Cookies cleared — only embed previews will be available.');
+      await refreshCookieStatus();
+    } catch {
+      setCookieMsg('Could not reach the engine');
+    }
+  };
 
   // Image upload state
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imgAuthor, setImgAuthor] = useState('Facebook User');
   const [imgCaption, setImgCaption] = useState('Attached Facebook post photo');
@@ -134,24 +187,24 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
   };
 
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length) {
+      setUploadedFiles(files);
       const reader = new FileReader();
       reader.onload = (loadEvt) => {
         setImagePreview(loadEvt.target?.result as string);
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(files[0]);
     }
   };
 
-  const handleConvertImageToPdf = async () => {
-    if (!uploadedFile) {
-      setError('Please choose an image file first');
+  const handleConvertImagesToPdf = async () => {
+    if (!uploadedFiles.length) {
+      setError('Please choose one or more image files first');
       return;
     }
     setError(null);
-    await onUploadImageAndExportPdf(uploadedFile, imgAuthor, imgCaption);
+    await onUploadImagesAndExportPdf(uploadedFiles, imgAuthor, imgCaption);
   };
 
   const handleQuickLoadPromptUrl = async () => {
@@ -239,6 +292,38 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
           >
             <ListPlus className="w-3.5 h-3.5" />
             <span>Batch URLs</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMode('image_urls');
+              setError(null);
+            }}
+            className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+              activeMode === 'image_urls'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ImageIcon className="w-3.5 h-3.5" />
+            <span>Image URLs</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveMode('cookies');
+              setError(null);
+            }}
+            className={`px-3 py-1.5 rounded-md font-medium transition-colors flex items-center gap-1.5 ${
+              activeMode === 'cookies'
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Cookie className="w-3.5 h-3.5" />
+            <span>Facebook Cookies</span>
           </button>
         </div>
       </div>
@@ -389,6 +474,7 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
             <input
               type="file"
               accept="image/*"
+              multiple
               onChange={handleImageFileChange}
               className="hidden"
             />
@@ -399,7 +485,9 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
                   alt="Upload preview"
                   className="max-h-36 rounded-lg object-contain border border-slate-700"
                 />
-                <span className="text-[11px] text-blue-400 font-medium">Click to change image</span>
+                <span className="text-[11px] text-blue-400 font-medium">
+                  {uploadedFiles.length} image{uploadedFiles.length === 1 ? '' : 's'} selected - click to change
+                </span>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-center">
@@ -408,17 +496,17 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-semibold text-slate-200 block">
-                    Choose or drop Facebook post image
+                    Choose Facebook post images (select all at once)
                   </span>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
-                    Supports screenshots, photos, PNG, JPG (or press Ctrl+V anywhere!)
+                    Ctrl/Shift-click to pick multiple - every image becomes a page in one PDF
                   </span>
                 </div>
               </div>
             )}
           </label>
 
-          {uploadedFile && (
+          {uploadedFiles.length > 0 && (
             <div className="grid grid-cols-2 gap-2 text-xs">
               <input
                 type="text"
@@ -439,19 +527,19 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
 
           <button
             type="button"
-            onClick={handleConvertImageToPdf}
-            disabled={isLoading || !uploadedFile}
+            onClick={handleConvertImagesToPdf}
+            disabled={isLoading || !uploadedFiles.length}
             className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Converting to PDF...</span>
+                <span>Combining {uploadedFiles.length} images into PDF...</span>
               </>
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Convert Uploaded Image to PDF</span>
+                <span>Convert Uploaded Images to PDF ({uploadedFiles.length || ''})</span>
               </>
             )}
           </button>
@@ -483,6 +571,109 @@ export const UrlInputBar: React.FC<UrlInputBarProps> = ({
             </button>
           </div>
         </form>
+      )}
+
+      {/* Paste image URLs copied from an already-open Facebook post */}
+      {activeMode === 'image_urls' && (
+        <div className="space-y-3">
+          <textarea
+            rows={5}
+            value={imageUrlsText}
+            onChange={(e) => {
+              setImageUrlsText(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder={'Paste one image URL per line (https://scontent...fbcdn.net/...)\n\nTip: on the open Facebook post press F12 and run the snippet to copy every image URL.'}
+            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            No cookies needed. Each URL becomes one page in the PDF. Use the browser console snippet on the open post to copy all photo URLs at once.
+          </p>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => onDownloadImageUrls(imageUrlsText)}
+              disabled={isLoading || !imageUrlsText.trim()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {isLoading
+                ? 'Building PDF...'
+                : `Download ${imageUrlsText.split('\n').filter((l) => l.trim()).length || ''} Images to PDF`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Mode 5: Facebook cookies — available in the plain browser too */}
+      {activeMode === 'cookies' && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-slate-300 flex items-center gap-1.5">
+              <Cookie className="w-4 h-4 text-cyan-400" />
+              Facebook login cookies
+            </span>
+            {cookieStatus?.configured ? (
+              <span className="text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Active ({cookieStatus.cookieCount} cookies)
+              </span>
+            ) : (
+              <span className="text-slate-500">Not configured - embed previews only</span>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed">
+            Export a Netscape <span className="font-mono text-slate-300">cookies.txt</span> from your logged-in Facebook browser and paste it below (or choose the file). This lets the scraper open the real post page and archive every image in a multi-photo post.
+          </p>
+          <textarea
+            rows={4}
+            value={cookiesText}
+            onChange={(e) => setCookiesText(e.target.value)}
+            placeholder={'# Netscape HTTP Cookie File\n.facebook.com\tTRUE\t/\tTRUE\t...\tc_user\t123456789'}
+            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-[11px] font-mono text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold cursor-pointer flex items-center gap-1.5">
+              <Upload className="w-3.5 h-3.5" />
+              Choose cookies.txt
+              <input
+                type="file"
+                accept=".txt"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  setCookiesText(await f.text());
+                  setCookieMsg(`Loaded ${f.name} - click Save cookies to apply.`);
+                  e.target.value = '';
+                }}
+                className="hidden"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={saveCookies}
+              disabled={!cookiesText.trim()}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center gap-1.5"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Save cookies
+            </button>
+            <button
+              type="button"
+              onClick={clearCookies}
+              disabled={!cookieStatus?.configured}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          </div>
+          {cookieMsg && (
+            <div className={`text-[11px] ${cookieMsg.startsWith('Saved') || cookieMsg.startsWith('Loaded') || cookieMsg.startsWith('Cookies cleared') ? 'text-emerald-400' : 'text-red-400'}`}>
+              {cookieMsg}
+            </div>
+          )}
+        </div>
       )}
 
       {error && (

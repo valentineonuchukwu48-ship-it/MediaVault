@@ -19,7 +19,7 @@ import { DesktopPanel } from './components/DesktopPanel';
 import { MobileInstallBar } from './components/MobileInstallBar';
 import { MediaOrganizer } from './components/MediaOrganizer';
 import { DeletionRadar } from './components/DeletionRadar';
-import { generateCombinedPdf, exportSinglePostPdf } from './utils/pdfGenerator';
+import { generateCombinedPdf, exportSinglePostPdf, generateImagesPdf } from './utils/pdfGenerator';
 import { Layers } from 'lucide-react';
 
 const initialPosts: FacebookPost[] = [
@@ -105,8 +105,8 @@ export default function App() {
           if (items[i].type.startsWith('image/')) {
             const file = items[i].getAsFile();
             if (file) {
-              handleUploadImageAndExportPdf(
-                file,
+              handleUploadImagesAndExportPdf(
+                [file],
                 'Archive Author',
                 'Uploaded Facebook photo / screenshot'
               );
@@ -200,20 +200,49 @@ export default function App() {
     }
   };
 
-  // Upload an image / screenshot and convert directly to PDF
-  const handleUploadImageAndExportPdf = async (
-    file: File,
+  // Upload images / screenshots saved from Facebook and convert them all into
+  // one PDF. No Facebook cookies or login are involved — the images are read
+  // locally in the browser and each one becomes a page in the archive.
+  const fileToJpegDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const maxSide = 2200;
+          const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not process image'));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.92));
+        };
+        img.onerror = () => reject(new Error(`Could not read ${file.name}`));
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+      reader.readAsDataURL(file);
+    });
+
+  const handleUploadImagesAndExportPdf = async (
+    files: File[],
     authorName = 'Archive Author',
-    caption = 'Uploaded Facebook Post / Photo'
+    caption = 'Uploaded Facebook Post / Photos'
   ): Promise<void> => {
+    if (!files || files.length === 0) return;
     setIsLoading(true);
     try {
-      const reader = new FileReader();
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        reader.onload = (e) => resolve(e.target?.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const images: string[] = [];
+      for (const file of files) {
+        images.push(await fileToJpegDataUrl(file));
+      }
 
       const newPost: FacebookPost = {
         id: `upload_${Date.now()}`,
@@ -229,8 +258,8 @@ export default function App() {
           hour: '2-digit',
           minute: '2-digit',
         }),
-        postContent: caption.trim() || 'Uploaded photo archived as evidence',
-        images: [dataUrl],
+        postContent: caption.trim() || `Uploaded images archive (${images.length} photos)`,
+        images,
         privacy: 'public',
         isProtected: false,
         extractedSource: 'manual',
@@ -242,12 +271,28 @@ export default function App() {
       setActivePostId(newPost.id);
       setActiveTab('preview');
 
-      // Wait 350ms for React DOM to render new post and images
-      await new Promise((res) => setTimeout(res, 400));
       await exportSinglePostPdf(newPost, settings);
     } catch (err) {
-      console.error('Image upload & PDF error:', err);
-      alert('Failed to convert uploaded image to PDF. Please try again.');
+      console.error('Images upload & PDF error:', err);
+      alert('Failed to convert uploaded images to PDF. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Paste image URLs copied from an already-open Facebook post — no cookies
+  // required — and build one PDF with every image.
+  const handleDownloadImageUrls = async (urlsText: string): Promise<void> => {
+    setIsLoading(true);
+    try {
+      const urls = urlsText
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      await generateImagesPdf(urls, settings);
+    } catch (err) {
+      console.error('Image URLs PDF error:', err);
+      alert('Failed to build PDF from those image URLs. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -458,7 +503,8 @@ export default function App() {
             onBatchGrab={handleBatchGrab}
             onGrabMultipleEmbedsAndDownloadPdf={handleGrabMultipleEmbedsAndDownloadPdf}
             onAddMultipleEmbedsToDeck={handleAddMultipleEmbedsToDeck}
-            onUploadImageAndExportPdf={handleUploadImageAndExportPdf}
+            onUploadImagesAndExportPdf={handleUploadImagesAndExportPdf}
+            onDownloadImageUrls={handleDownloadImageUrls}
             isLoading={isLoading}
             totalPosts={posts.length}
           />

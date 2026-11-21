@@ -110,6 +110,26 @@ function getFreePort() {
   });
 }
 
+// Keep the browser address stable across restarts: prefer a fixed port (3000
+// by default, override with FGC_ENGINE_PORT) and only fall back to a random
+// free port when it is already taken.
+async function getPreferredPort() {
+  const preferred = Number(process.env.FGC_ENGINE_PORT || 3000);
+  if (Number.isInteger(preferred) && preferred > 0 && preferred < 65536) {
+    try {
+      return await new Promise((resolve, reject) => {
+        const probe = net.createServer();
+        probe.unref();
+        probe.on('error', reject);
+        probe.listen(preferred, '127.0.0.1', () => probe.close(() => resolve(preferred)));
+      });
+    } catch {
+      /* port busy — fall through */
+    }
+  }
+  return getFreePort();
+}
+
 function engineEnv(port) {
   const settings = readSettings();
   // Phone Connect (mobile app over Wi-Fi): when enabled the engine binds to
@@ -435,7 +455,7 @@ async function boot() {
     return;
   }
 
-  enginePort = await getFreePort();
+  enginePort = await getPreferredPort();
   setProgress(22, 'Starting background engine…');
   engine = startEngine(enginePort);
 

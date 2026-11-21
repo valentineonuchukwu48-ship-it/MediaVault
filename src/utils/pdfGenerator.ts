@@ -553,6 +553,79 @@ export async function exportSinglePostPdf(
   await generateCombinedPdf([post], { ...settings, includeCoverPage: false });
 }
 
+/**
+ * Build one PDF from a list of image URLs (one image per page). This is the
+ * no-credentials path: the URLs can be copied from an already-open, logged-in
+ * Facebook post, and each image is fetched through the app's local proxy.
+ */
+export async function generateImagesPdf(
+  imageUrls: string[],
+  settings: ExportSettings,
+  onProgress?: (progress: GenerationProgress) => void
+): Promise<void> {
+  const urls = imageUrls.map((s) => s.trim()).filter(Boolean);
+  if (!urls.length) throw new Error('No image URLs provided');
+
+  const isA4 = settings.pageFormat === 'a4';
+  const orientation = settings.pageOrientation;
+  const pageWidth = orientation === 'portrait' ? (isA4 ? 210 : 215.9) : (isA4 ? 297 : 279.4);
+  const pageHeight = orientation === 'portrait' ? (isA4 ? 297 : 279.4) : (isA4 ? 210 : 215.9);
+  const pdf = new jsPDF({
+    orientation,
+    unit: 'mm',
+    format: settings.pageFormat === 'auto_card' ? 'a4' : settings.pageFormat,
+    compress: true,
+  });
+
+  for (let i = 0; i < urls.length; i++) {
+    onProgress?.({ step: i + 1, total: urls.length, message: `Fetching image ${i + 1} of ${urls.length}...` });
+
+    // Ask the CDN for the full-size photo rather than a small embed thumbnail.
+    const url = urls[i].replace(/([?&])stp=[^&]+&?/g, '$1').replace(/[?&]$/, '');
+    const img = await getBase64Image(url);
+
+    if (i > 0) pdf.addPage(settings.pageFormat === 'auto_card' ? 'a4' : settings.pageFormat, orientation);
+
+    pdf.setFillColor(248, 250, 252);
+    pdf.setDrawColor(226, 232, 240);
+    pdf.rect(15, 12, pageWidth - 30, 8, 'FD');
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    pdf.setTextColor(71, 85, 105);
+    pdf.text(`FACEBOOK POST IMAGE ${i + 1} OF ${urls.length}`, 19, 17.5);
+
+    if (!img || !img.dataUrl) {
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(180, 30, 30);
+      pdf.text('Image could not be fetched', 19, 40);
+      continue;
+    }
+
+    const marginX = 15;
+    const top = 26;
+    const bottom = 20;
+    const availW = pageWidth - marginX * 2;
+    const availH = pageHeight - top - bottom;
+    const aspect = img.width / img.height;
+    let w = availW;
+    let h = w / aspect;
+    if (h > availH) {
+      h = availH;
+      w = h * aspect;
+    }
+    const x = marginX + (availW - w) / 2;
+    const y = top + (availH - h) / 2;
+    try {
+      pdf.addImage(img.dataUrl, 'JPEG', x, y, w, h, undefined, 'FAST');
+    } catch (err) {
+      console.warn('Failed to add image to PDF:', err);
+    }
+  }
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  pdf.save(`facebook_images_${timestamp}.pdf`);
+}
+
 // Export image as PNG
 export async function exportElementAsPng(
   post: FacebookPost,
